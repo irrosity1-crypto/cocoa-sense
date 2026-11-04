@@ -58,6 +58,13 @@ def test_full_pipeline(raw_fixture_files: ProjectConfig) -> None:
     pipeline.stage_report(cfg)
     assert (p.figures / "test_actual_vs_pred_h3.png").exists()
     assert (p.figures / "simulation_strategy_outcomes.png").exists()
+    misses = pd.read_csv(p.metrics / "test_largest_misses.csv")
+    assert set(misses["horizon"]) == {1, 3} and len(misses) == 20
+    assert (
+        misses.groupby("horizon")["error_pct"]
+        .apply(lambda s: s.abs().is_monotonic_decreasing)
+        .all()
+    )
 
 
 def test_cli_help_and_locked_final(project: ProjectConfig) -> None:
