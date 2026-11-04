@@ -1,0 +1,40 @@
+{
+  "files": {
+    "fred/PCOCOUSDM.csv": {
+      "path": "fred/PCOCOUSDM.csv",
+      "source": "fred_pcocousdm",
+      "url": "https://fred.stlouisfed.org/graph/fredgraph.csv?id=PCOCOUSDM",
+      "origin": "download",
+      "retrieved_at": "2026-11-04T22:44:05+00:00",
+      "sha256": "ad984b5d4d7d17deff2f20646ccc20056db71733bf350bc43b589e7d857393cd",
+      "bytes": 12099,
+      "rows": 417,
+      "date_min": "1992-01-01",
+      "date_max": "2026-09-01"
+    },
+    "imf/ER_GHA_XDC_USD_PA_RT_M.xml": {
+      "path": "imf/ER_GHA_XDC_USD_PA_RT_M.xml",
+      "source": "imf_er_ghs_usd",
+      "url": "https://api.imf.org/external/sdmx/2.1/data/IMF.STA,ER/GHA.XDC_USD.PA_RT.M?startPeriod=1990",
+      "origin": "download",
+      "retrieved_at": "2026-11-04T22:44:08+00:00",
+      "sha256": "6817768aab7360009b63828cdc444d20feb8fc0130ded88668af62f9b1d6182c",
+      "bytes": 33520,
+      "rows": 433,
+      "date_min": "1990-01-01",
+      "date_max": "2026-01-01"
+    },
+    "worldbank/CMO-Historical-Data-Monthly.xlsx": {
+      "path": "worldbank/CMO-Historical-Data-Monthly.xlsx",
+      "source": "worldbank_pinksheet",
+      "url": "https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx",
+      "origin": "download",
+      "retrieved_at": "2026-11-04T22:44:03+00:00",
+      "sha256": "3c8d9d8dbb48342fdbf24777c39a8ce8964cc2fd0958f72f6779e6e4ad99cde2",
+      "bytes": 587760,
+      "rows": 802,
+      "date_min": "1960-01-01",
+      "date_max": "2026-10-01"
+    }
+  }
+}
