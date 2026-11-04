@@ -1,0 +1,6 @@
+# Keep text files LF everywhere; never touch raw data bytes (their SHA-256 is in the manifest).
+* text=auto eol=lf
+data/raw/** -text
+*.xlsx binary
+*.png binary
+*.parquet binary
