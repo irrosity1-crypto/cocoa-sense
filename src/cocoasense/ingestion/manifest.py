@@ -58,7 +58,7 @@ def write_entry(path: Path, entry: ManifestEntry) -> None:
     files = read_manifest(path)
     files[entry.path] = asdict(entry)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as fh:
+    with path.open("w", encoding="utf-8", newline="\n") as fh:
         json.dump({"files": dict(sorted(files.items()))}, fh, indent=2)
         fh.write("\n")
     logger.info("manifest updated: %s (sha256 %s…)", entry.path, entry.sha256[:12])

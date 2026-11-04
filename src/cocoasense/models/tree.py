@@ -142,8 +142,13 @@ def _plain(v: Any) -> Any:
 
 
 def random_forest_factory(seed: int) -> RegressorMixin:
-    """Seeded Random Forest regressor."""
-    return RandomForestRegressor(random_state=seed, n_jobs=-1)
+    """Seeded Random Forest regressor.
+
+    Single-threaded on purpose: with ``n_jobs=-1`` the per-tree predictions are summed in a
+    thread-dependent order, so refits differ in the last floating-point digit and reruns are not
+    bit-for-bit reproducible.
+    """
+    return RandomForestRegressor(random_state=seed, n_jobs=1)
 
 
 def xgboost_factory(seed: int) -> RegressorMixin:
