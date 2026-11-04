@@ -1,0 +1,121 @@
+"""Command-line interface: ``cocoasense <stage>``."""
+
+from __future__ import annotations
+
+import logging
+import subprocess
+import sys
+from pathlib import Path
+
+import typer
+
+from cocoasense import pipeline
+from cocoasense.config import ProjectConfig, load_config, setup_logging
+
+app = typer.Typer(
+    help="CocoaSense AI: cocoa price forecasting and forward-sales simulation (simulated "
+    "results on public prices, not Ghana's actual outcomes).",
+    no_args_is_help=True,
+    add_completion=False,
+)
+
+RootOpt = typer.Option(None, "--root", help="Project root (defaults to the repository root).")
+
+
+def _cfg(root: Path | None) -> ProjectConfig:
+    setup_logging(logging.INFO)
+    return load_config(root)
+
+
+@app.command()
+def ingest(
+    refresh: bool = typer.Option(False, help="Download fresh copies (old files are archived)."),
+    root: Path | None = RootOpt,
+) -> None:
+    """Download or reuse raw files and update data/raw/manifest.json."""
+    for e in pipeline.stage_ingest(_cfg(root), refresh=refresh):
+        typer.echo(f"{e.path}: {e.rows} rows {e.date_min}..{e.date_max} ({e.origin})")
+
+
+@app.command("validate")
+def validate_cmd(root: Path | None = RootOpt) -> None:
+    """Validate and align series; write data/interim and artifacts/data_quality.md."""
+    m = pipeline.stage_validate(_cfg(root))
+    typer.echo(f"monthly table: {len(m)} rows {m.index.min():%Y-%m}..{m.index.max():%Y-%m}")
+
+
+@app.command()
+def features(root: Path | None = RootOpt) -> None:
+    """Build the documented feature table in data/processed."""
+    t = pipeline.stage_features(_cfg(root))
+    typer.echo(f"feature table: {t.shape[0]} rows x {t.shape[1]} columns")
+
+
+@app.command()
+def train(root: Path | None = RootOpt) -> None:
+    """Development stage: fit on data to 2015 and forecast the 2016–2019 validation period."""
+    pipeline.stage_train(_cfg(root))
+    typer.echo("validation predictions and leaderboards written to artifacts/")
+
+
+@app.command()
+def freeze(
+    overwrite: bool = typer.Option(False, help="Replace an existing frozen.yaml."),
+    root: Path | None = RootOpt,
+) -> None:
+    """Choose settings from validation results and write configs/frozen.yaml."""
+    frozen = pipeline.stage_freeze(_cfg(root), overwrite=overwrite)
+    typer.echo(
+        f"frozen: simulation driver={frozen['simulation']['driver_model']} "
+        f"a={frozen['simulation']['a']}. Commit configs/frozen.yaml before --final."
+    )
+
+
+@app.command()
+def evaluate(
+    final: bool = typer.Option(False, "--final", help="Score the held-out test period (once)."),
+    root: Path | None = RootOpt,
+) -> None:
+    """Score validation predictions, or with --final run the frozen models on the test period."""
+    cfg = _cfg(root)
+    if final:
+        pipeline.stage_evaluate_final(cfg)
+        typer.echo("test predictions and metrics written; run logged in artifacts/final_runs.log")
+    else:
+        pipeline.stage_score_validation(cfg)
+        typer.echo("validation metrics written (test period untouched)")
+
+
+@app.command()
+def simulate(root: Path | None = RootOpt) -> None:
+    """Forward-sales simulation on the test period with the frozen rule."""
+    r = pipeline.stage_simulate(_cfg(root))
+    typer.echo(f"simulated {r['decision_date'].nunique()} decision dates")
+
+
+@app.command()
+def report(root: Path | None = RootOpt) -> None:
+    """Write figures to artifacts/figures."""
+    pipeline.stage_report(_cfg(root))
+    typer.echo("figures written to artifacts/figures")
+
+
+@app.command("all")
+def run_all(
+    refresh: bool = typer.Option(False, help="Re-download raw data first."),
+    root: Path | None = RootOpt,
+) -> None:
+    """Run every stage from raw data to artifacts."""
+    pipeline.stage_all(_cfg(root), refresh=refresh)
+    typer.echo("pipeline complete")
+
+
+@app.command()
+def dashboard() -> None:  # pragma: no cover - launches a server
+    """Start the Streamlit dashboard."""
+    app_path = Path(__file__).parent / "dashboard" / "app.py"
+    raise typer.Exit(subprocess.call([sys.executable, "-m", "streamlit", "run", str(app_path)]))
+
+
+if __name__ == "__main__":  # pragma: no cover
+    app()
