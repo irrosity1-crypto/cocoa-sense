@@ -100,3 +100,25 @@ Each entry: date, options considered, choice, reason. Newest last.
 - `cocoasense train` = development stage (fit to 2015, forecast validation); `freeze` writes the
   frozen configuration; `evaluate --final` runs the test period once.
 - A Makefile is provided for CI/Linux; on Windows the same commands run via `uv run`.
+
+## D14 · 2026-11-04 · Forecast-driven rule chosen at the edge of its grid
+- **Observation:** on validation, mean revenue of the forecast-driven rule rose monotonically
+  with `a` for the XGBoost driver, so the frozen choice is `a = 2.0`, the largest value in the
+  grid fixed before training (`configs/simulation.yaml`). The gain over Fixed 50/50 on validation
+  is small (`artifacts/metrics/validation_simulation_a_grid.csv`) and the worst-10 % outcome is
+  slightly lower.
+- **Options:** (a) keep the pre-declared grid; (b) widen the grid after seeing validation results.
+- **Choice:** (a).
+- **Reason:** widening would push towards an almost all-or-nothing rule tuned on only 48
+  validation months, i.e. overfitting the validation period. The test-period sensitivity table
+  reports results for every `a` in the grid, clearly labelled as not used for selection.
+
+## D15 · 2026-11-04 · Random Forest single-threaded for reproducibility
+- **Observation:** leakage test 4 failed once in a full test run and passed on rerun. Cause:
+  with `n_jobs=-1`, scikit-learn sums per-tree predictions in thread-dependent order, so identical
+  refits differ at ~1e-16 (verified: 6.7e-16 max difference across six refits; 0.0 with
+  `n_jobs=1`).
+- **Choice:** `RandomForestRegressor(n_jobs=1)`; XGBoost was already single-threaded. The
+  development stage and freeze were rerun after this change, before any test-period run.
+- **Reason:** the build requirement is bit-for-bit identical metrics on rerun, and leakage test 4
+  compares fitted settings exactly.

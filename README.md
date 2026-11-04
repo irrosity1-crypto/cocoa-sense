@@ -90,8 +90,21 @@ Details, licences and anomalies: `docs/data_sources.md`, `artifacts/data_quality
 
 ## Results
 
-See `docs/results.md` for the forecasting results and simulation outcomes, with every number
-traced to a file in `artifacts/`.
+Test period January 2020 – October 2026, models frozen at December 2019 (full details and sources
+in `docs/results.md`):
+
+| | 1-month MAPE | 3-month MAPE |
+|---|---|---|
+| Naive (last price) | 7.20 % | 15.05 % |
+| ARIMA (best) | 6.87 % | 14.88 % |
+| Random Forest | 7.11 % | 14.95 % |
+| XGBoost | 7.17 % | 15.12 % |
+
+- No model beat the naive baseline by a statistically significant margin; the 5–6 % edge seen on
+  2016–2019 validation data shrank to 1–4 %.
+- The GHS/USD exchange rate did not improve forecasts.
+- The forecast-driven selling rule earned 0.8 % less than a fixed 50/50 split. In the 2023–25
+  surge the frozen models expected high prices to revert and sold forward too early.
 
 ## Quality gate
 

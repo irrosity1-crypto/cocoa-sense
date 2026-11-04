@@ -437,9 +437,35 @@ def stage_report(cfg: ProjectConfig) -> None:
         figures.error_by_period(
             pd.read_csv(p.metrics / "test_metrics.csv"), f / "test_error_by_period.png"
         )
+        write_table(
+            largest_misses(tp, 10),
+            p.metrics / "test_largest_misses.csv",
+            "Largest absolute percentage errors in the test period",
+        )
     sim = p.simulation / "strategy_results.parquet"
     if sim.exists():
         figures.strategy_outcomes(pd.read_parquet(sim), f / "simulation_strategy_outcomes.png")
+
+
+def largest_misses(preds: pd.DataFrame, n: int) -> pd.DataFrame:
+    """Top-n absolute percentage errors per horizon, with the actual move over the horizon."""
+    p = preds.copy()
+    p["error_pct"] = (p["y_pred"] - p["y_true"]) / p["y_true"] * 100
+    p["actual_move_pct"] = (p["y_true"] / p["last_obs"] - 1) * 100
+    p["abs_error_pct"] = p["error_pct"].abs()
+    top = p.sort_values("abs_error_pct", ascending=False).groupby("horizon").head(n)
+    cols = [
+        "horizon",
+        "model",
+        "decision_date",
+        "target_date",
+        "last_obs",
+        "y_true",
+        "y_pred",
+        "error_pct",
+        "actual_move_pct",
+    ]
+    return top.sort_values(["horizon", "abs_error_pct"], ascending=[True, False])[cols]
 
 
 def stage_all(cfg: ProjectConfig, refresh: bool = False) -> None:
