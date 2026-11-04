@@ -1,0 +1,354 @@
+{
+  "naive": {
+    "train_start": "1980-01-01",
+    "train_target_max": "2019-12-01",
+    "return_quantiles": {
+      "1": [
+        -0.07001962557733708,
+        0.07075416268392302
+      ],
+      "3": [
+        -0.1253288210155294,
+        0.14744621061334212
+      ]
+    },
+    "fit_seconds": 0.0,
+    "total_seconds": 0.05,
+    "fit_end": "2019-12-01"
+  },
+  "arima": {
+    "train_start": "1980-01-01",
+    "train_target_max": "2019-12-01",
+    "order": [
+      0,
+      1,
+      1
+    ],
+    "aic": -1367.3246856352807,
+    "params": {
+      "ma.L1": 0.181584,
+      "sigma2": 0.003343
+    },
+    "fit_seconds": 1.82,
+    "total_seconds": 4.83,
+    "fit_end": "2019-12-01"
+  },
+  "random_forest": {
+    "train_start": "1991-01-01",
+    "train_target_max": "2019-12-01",
+    "last_label_date": {
+      "1": "2019-12-01",
+      "3": "2019-12-01"
+    },
+    "features": [
+      "log_price",
+      "ret_1m",
+      "ret_2m",
+      "ret_3m",
+      "ret_6m",
+      "ret_12m",
+      "vol_3m",
+      "vol_6m",
+      "vol_12m",
+      "gap_ma_3m",
+      "gap_ma_6m",
+      "gap_ma_12m",
+      "month_sin",
+      "month_cos"
+    ],
+    "best_params": {
+      "1": {
+        "max_depth": 3,
+        "max_features": 0.5,
+        "min_samples_leaf": 20,
+        "n_estimators": 300
+      },
+      "3": {
+        "max_depth": 3,
+        "max_features": 0.5,
+        "min_samples_leaf": 20,
+        "n_estimators": 300
+      }
+    },
+    "conformal_halfwidth_logret": {
+      "1": 0.07026017206376574,
+      "3": 0.1362113209561509
+    },
+    "n_train_rows": {
+      "1": 347,
+      "3": 345
+    },
+    "fit_seconds": 42.74,
+    "total_seconds": 46.18,
+    "fit_end": "2019-12-01"
+  },
+  "xgboost": {
+    "train_start": "1991-01-01",
+    "train_target_max": "2019-12-01",
+    "last_label_date": {
+      "1": "2019-12-01",
+      "3": "2019-12-01"
+    },
+    "features": [
+      "log_price",
+      "ret_1m",
+      "ret_2m",
+      "ret_3m",
+      "ret_6m",
+      "ret_12m",
+      "vol_3m",
+      "vol_6m",
+      "vol_12m",
+      "gap_ma_3m",
+      "gap_ma_6m",
+      "gap_ma_12m",
+      "month_sin",
+      "month_cos"
+    ],
+    "best_params": {
+      "1": {
+        "colsample_bytree": 0.8,
+        "learning_rate": 0.03,
+        "max_depth": 2,
+        "min_child_weight": 5,
+        "n_estimators": 200,
+        "reg_lambda": 1.0,
+        "subsample": 0.8
+      },
+      "3": {
+        "colsample_bytree": 0.8,
+        "learning_rate": 0.03,
+        "max_depth": 2,
+        "min_child_weight": 5,
+        "n_estimators": 200,
+        "reg_lambda": 1.0,
+        "subsample": 0.8
+      }
+    },
+    "conformal_halfwidth_logret": {
+      "1": 0.07699136226755687,
+      "3": 0.1577999287790801
+    },
+    "n_train_rows": {
+      "1": 347,
+      "3": 345
+    },
+    "fit_seconds": 5.55,
+    "total_seconds": 6.34,
+    "fit_end": "2019-12-01"
+  },
+  "random_forest_nofx@1991": {
+    "train_start": "1991-01-01",
+    "train_target_max": "2019-12-01",
+    "last_label_date": {
+      "1": "2019-12-01",
+      "3": "2019-12-01"
+    },
+    "features": [
+      "log_price",
+      "ret_1m",
+      "ret_2m",
+      "ret_3m",
+      "ret_6m",
+      "ret_12m",
+      "vol_3m",
+      "vol_6m",
+      "vol_12m",
+      "gap_ma_3m",
+      "gap_ma_6m",
+      "gap_ma_12m",
+      "month_sin",
+      "month_cos"
+    ],
+    "best_params": {
+      "1": {
+        "max_depth": 3,
+        "max_features": 0.5,
+        "min_samples_leaf": 20,
+        "n_estimators": 300
+      },
+      "3": {
+        "max_depth": 3,
+        "max_features": 0.5,
+        "min_samples_leaf": 20,
+        "n_estimators": 300
+      }
+    },
+    "conformal_halfwidth_logret": {
+      "1": 0.07026017206376574,
+      "3": 0.1362113209561509
+    },
+    "n_train_rows": {
+      "1": 347,
+      "3": 345
+    },
+    "fit_seconds": 43.15,
+    "total_seconds": 46.22,
+    "fit_end": "2019-12-01"
+  },
+  "random_forest_fx@1991": {
+    "train_start": "1991-01-01",
+    "train_target_max": "2019-12-01",
+    "last_label_date": {
+      "1": "2019-12-01",
+      "3": "2019-12-01"
+    },
+    "features": [
+      "log_price",
+      "ret_1m",
+      "ret_2m",
+      "ret_3m",
+      "ret_6m",
+      "ret_12m",
+      "vol_3m",
+      "vol_6m",
+      "vol_12m",
+      "gap_ma_3m",
+      "gap_ma_6m",
+      "gap_ma_12m",
+      "month_sin",
+      "month_cos",
+      "fx_ret_1m",
+      "fx_ret_3m",
+      "fx_ret_12m"
+    ],
+    "best_params": {
+      "1": {
+        "max_depth": 3,
+        "max_features": 0.5,
+        "min_samples_leaf": 20,
+        "n_estimators": 300
+      },
+      "3": {
+        "max_depth": 3,
+        "max_features": 0.5,
+        "min_samples_leaf": 20,
+        "n_estimators": 300
+      }
+    },
+    "conformal_halfwidth_logret": {
+      "1": 0.07179034679279477,
+      "3": 0.13907527834119898
+    },
+    "n_train_rows": {
+      "1": 347,
+      "3": 345
+    },
+    "fit_seconds": 44.3,
+    "total_seconds": 47.4,
+    "fit_end": "2019-12-01"
+  },
+  "xgboost_nofx@1991": {
+    "train_start": "1991-01-01",
+    "train_target_max": "2019-12-01",
+    "last_label_date": {
+      "1": "2019-12-01",
+      "3": "2019-12-01"
+    },
+    "features": [
+      "log_price",
+      "ret_1m",
+      "ret_2m",
+      "ret_3m",
+      "ret_6m",
+      "ret_12m",
+      "vol_3m",
+      "vol_6m",
+      "vol_12m",
+      "gap_ma_3m",
+      "gap_ma_6m",
+      "gap_ma_12m",
+      "month_sin",
+      "month_cos"
+    ],
+    "best_params": {
+      "1": {
+        "colsample_bytree": 0.8,
+        "learning_rate": 0.03,
+        "max_depth": 2,
+        "min_child_weight": 5,
+        "n_estimators": 200,
+        "reg_lambda": 1.0,
+        "subsample": 0.8
+      },
+      "3": {
+        "colsample_bytree": 0.8,
+        "learning_rate": 0.03,
+        "max_depth": 2,
+        "min_child_weight": 5,
+        "n_estimators": 200,
+        "reg_lambda": 1.0,
+        "subsample": 0.8
+      }
+    },
+    "conformal_halfwidth_logret": {
+      "1": 0.07699136226755687,
+      "3": 0.1577999287790801
+    },
+    "n_train_rows": {
+      "1": 347,
+      "3": 345
+    },
+    "fit_seconds": 4.35,
+    "total_seconds": 5.05,
+    "fit_end": "2019-12-01"
+  },
+  "xgboost_fx@1991": {
+    "train_start": "1991-01-01",
+    "train_target_max": "2019-12-01",
+    "last_label_date": {
+      "1": "2019-12-01",
+      "3": "2019-12-01"
+    },
+    "features": [
+      "log_price",
+      "ret_1m",
+      "ret_2m",
+      "ret_3m",
+      "ret_6m",
+      "ret_12m",
+      "vol_3m",
+      "vol_6m",
+      "vol_12m",
+      "gap_ma_3m",
+      "gap_ma_6m",
+      "gap_ma_12m",
+      "month_sin",
+      "month_cos",
+      "fx_ret_1m",
+      "fx_ret_3m",
+      "fx_ret_12m"
+    ],
+    "best_params": {
+      "1": {
+        "colsample_bytree": 0.8,
+        "learning_rate": 0.03,
+        "max_depth": 2,
+        "min_child_weight": 5,
+        "n_estimators": 200,
+        "reg_lambda": 1.0,
+        "subsample": 0.8
+      },
+      "3": {
+        "colsample_bytree": 0.8,
+        "learning_rate": 0.03,
+        "max_depth": 2,
+        "min_child_weight": 5,
+        "n_estimators": 200,
+        "reg_lambda": 1.0,
+        "subsample": 0.8
+      }
+    },
+    "conformal_halfwidth_logret": {
+      "1": 0.08070957746554264,
+      "3": 0.16736143666812087
+    },
+    "n_train_rows": {
+      "1": 347,
+      "3": 345
+    },
+    "fit_seconds": 5.0,
+    "total_seconds": 5.83,
+    "fit_end": "2019-12-01"
+  }
+}

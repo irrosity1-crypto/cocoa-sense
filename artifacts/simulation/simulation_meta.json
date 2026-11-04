@@ -1,0 +1,8 @@
+{
+  "forward_price_mode": "spot_proxy",
+  "driver_model": "xgboost",
+  "a": 2.0,
+  "horizon": 3,
+  "quantity_t": 1000.0,
+  "financing_rate_annual": 0.1
+}
