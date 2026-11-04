@@ -1,0 +1,32 @@
+# Model settings. Hyperparameter grids are searched with time-series cross-validation
+# inside the training window only (sklearn TimeSeriesSplit with gap = horizon).
+
+seed: 42
+cv_splits: 5
+interval_level: 0.80   # nominal coverage of prediction intervals
+
+models:
+  naive: {}
+
+  arima:
+    max_p: 3
+    max_q: 3
+    d: 1
+    trend: "n"          # no drift; with d=1 this nests the random walk (0,1,0)
+
+  random_forest:
+    grid:
+      n_estimators: [300]
+      max_depth: [3, 5, null]
+      min_samples_leaf: [5, 10, 20]
+      max_features: [0.5, 1.0]
+
+  xgboost:
+    grid:
+      n_estimators: [200, 400]
+      max_depth: [2, 3]
+      learning_rate: [0.03, 0.1]
+      subsample: [0.8]
+      colsample_bytree: [0.8]
+      min_child_weight: [5]
+      reg_lambda: [1.0]

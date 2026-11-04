@@ -1,0 +1,12 @@
+# Feature definitions. Every feature at decision month t uses only data up to and including t.
+# The month-t average price is known at the end of month t, which is when the decision is made.
+
+return_windows: [1, 2, 3, 6, 12]   # k-month log returns ending at t
+rolling_windows: [3, 6, 12]        # rolling volatility and distance from rolling mean of log price
+include_level: true                # include log price level as a feature
+include_seasonality: true          # sine / cosine of calendar month
+
+use_fx: false                      # add exchange-rate features (sub-question 2)
+fx_return_windows: [1, 3, 12]      # k-month log change in ghs_per_usd ending at t
+
+horizons: [1, 3]                   # forecast horizons in months (6 is supported)

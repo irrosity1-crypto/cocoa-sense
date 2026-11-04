@@ -1,0 +1,21 @@
+# Forward-sales simulation settings. Every assumption is documented in
+# docs/simulation_assumptions.md. Results are simulations on public prices, not Ghana's outcomes.
+
+horizon: 3                    # months between decision and delivery
+quantity_t: 1000.0            # hypothetical tonnes sold per decision date
+financing_rate_annual: 0.10   # annual cost of carrying the unsold share until delivery
+forward_price_mode: spot_proxy   # spot_proxy | futures
+futures_csv: null             # path to a user-supplied futures CSV (date, contract_month, settle)
+
+# Forecast-driven rule: w = clip(0.5 + a * z, 0, 1), z = (F_t - forecast) / interval half-width.
+# `a` and the driving model are chosen on the validation period, then frozen in configs/frozen.yaml.
+a_grid: [0.0, 0.1, 0.25, 0.5, 1.0, 2.0]
+
+scenarios:              # hypothetical delivery-price shocks relative to the decision-date price
+  up_20: 1.20
+  down_15: 0.85
+  flat: 1.00
+
+sensitivity:
+  financing_rates: [0.0, 0.05, 0.10, 0.15, 0.20]
+  horizons: [1, 3]

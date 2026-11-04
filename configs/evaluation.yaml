@@ -1,0 +1,25 @@
+# Chronological protocol (see docs/methodology.md and docs/decisions.md).
+#
+#   Development stage: fit on months with targets <= train_end, forecast the validation period.
+#   Final stage (--final only): refit on months with targets <= final_train_end, FREEZE the
+#   parameters, then forecast every month of the test period without refitting.
+#
+# No model is ever trained on a target month later than final_train_end (December 2019).
+
+train_start: "1980-01"        # earliest month used for training (selected on validation)
+train_end: "2015-12"          # last target month for development-stage training
+validation_start: "2016-01"   # first validation target month
+validation_end: "2019-12"     # last validation target month
+final_train_end: "2019-12"    # last target month the frozen final models ever see
+test_start: "2020-01"         # first test target month
+test_end: null                # null = last month in the data
+
+# Sub-periods of the test set, by TARGET month (the month being predicted).
+periods:
+  pre_surge: ["2020-01", "2022-12"]
+  surge: ["2023-01", "2025-01"]     # rise to the January 2025 peak
+  post_peak: ["2025-02", null]      # fall and partial rebound
+surge_start: "2023-01"              # used for the in_surge_period flag
+
+# Candidate training start months compared on the validation period.
+train_start_candidates: ["1960-01", "1980-01", "1991-01"]

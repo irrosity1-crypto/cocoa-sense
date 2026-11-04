@@ -1,0 +1,39 @@
+# Data sources and validation thresholds.
+# Raw files live under data/raw/<file> and are never edited. `cocoasense ingest --refresh`
+# downloads a fresh copy and archives the previous one under data/raw/archive/.
+
+sources:
+  worldbank_pinksheet:
+    description: World Bank Commodity Price Data (Pink Sheet), monthly, nominal USD
+    url: https://thedocs.worldbank.org/en/doc/74e8be41ceb20fa0da750cda2f6b9e4e-0050012026/related/CMO-Historical-Data-Monthly.xlsx
+    landing_page: https://www.worldbank.org/en/research/commodity-markets
+    file: worldbank/CMO-Historical-Data-Monthly.xlsx
+    licence: CC BY 4.0 (World Bank Open Data terms)
+  fred_pcocousdm:
+    description: IMF Global price of Cocoa via FRED (PCOCOUSDM), USD per metric ton, monthly
+    url: https://fred.stlouisfed.org/graph/fredgraph.csv?id=PCOCOUSDM
+    landing_page: https://fred.stlouisfed.org/series/PCOCOUSDM
+    file: fred/PCOCOUSDM.csv
+    licence: Public domain (IMF Primary Commodity Prices, redistributed by FRED)
+  imf_er_ghs_usd:
+    description: IMF Exchange Rates (ER) dataset, Ghana, national currency per USD, period average, monthly
+    url: https://api.imf.org/external/sdmx/2.1/data/IMF.STA,ER/GHA.XDC_USD.PA_RT.M?startPeriod=1990
+    landing_page: https://data.imf.org/
+    file: imf/ER_GHA_XDC_USD_PA_RT_M.xml
+    licence: IMF open data (PUBLIC_OPEN access level)
+
+# Which source supplies the target series, and which is used only as a cross-check.
+primary_price: worldbank_pinksheet
+crosscheck_price: fred_pcocousdm
+
+validation:
+  price_min_usd_t: 100.0
+  price_max_usd_t: 20000.0
+  fx_min_ghs_per_usd: 0.0001
+  fx_max_ghs_per_usd: 100.0
+  # Monthly log changes larger than this are reported (not removed) as possible outliers.
+  max_abs_monthly_log_change_warn: 0.35
+  # Mean absolute % difference between primary and cross-check above which validation fails.
+  crosscheck_mean_tolerance_pct: 2.0
+  # Individual months with a larger % difference are listed in the data-quality report.
+  crosscheck_month_flag_pct: 5.0
