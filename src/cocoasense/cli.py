@@ -113,8 +113,20 @@ def run_all(
 @app.command()
 def dashboard() -> None:  # pragma: no cover - launches a server
     """Start the Streamlit dashboard."""
-    app_path = Path(__file__).parent / "dashboard" / "app.py"
-    raise typer.Exit(subprocess.call([sys.executable, "-m", "streamlit", "run", str(app_path)]))
+    app_path = Path(__file__).parent / "dashboard" / "Overview.py"
+    raise typer.Exit(
+        subprocess.call(
+            [
+                sys.executable,
+                "-m",
+                "streamlit",
+                "run",
+                str(app_path),
+                "--client.toolbarMode",
+                "viewer",
+            ]
+        )
+    )
 
 
 if __name__ == "__main__":  # pragma: no cover

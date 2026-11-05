@@ -29,13 +29,17 @@ c1.metric(
     f"{len(price)}",
     f"{price.index.min():%b %Y} – {price.index.max():%b %Y}",
     delta_color="off",
+    delta_arrow="off",
 )
-c2.metric("Training cut-off", "Dec 2019", "no model sees later data", delta_color="off")
+c2.metric(
+    "Training cut-off", "Dec 2019", "no model sees later data", delta_color="off", delta_arrow="off"
+)
 c3.metric(
     "Latest monthly price",
     f"US$ {price.iloc[-1]:,.0f}/t",
     f"{price.index[-1]:%b %Y}",
     delta_color="off",
+    delta_arrow="off",
 )
 
 fig = go.Figure()
@@ -101,7 +105,7 @@ else:
 sim = data.simulation_table("strategy_metrics.csv")
 if sim is not None:
     st.subheader("Simulated forward-sales strategies (test period)")
-    s = sim[sim["period"] == "full"][
+    s = data.strategy_display(sim[sim["period"] == "full"])[
         [
             "strategy",
             "mean_revenue_per_t",
@@ -123,8 +127,7 @@ if sim is not None:
                 "Mean US$/t": "{:,.0f}",
                 "Worst 10 % mean US$/t": "{:,.0f}",
                 "Regret vs best fixed": "{:,.0f}",
-                "Win rate vs 50/50": "{:.0%}",
-            }
+            },
         ),
         hide_index=True,
         use_container_width=True,

@@ -31,6 +31,63 @@ MODEL_LABELS = {
 }
 
 
+# One colour per model / strategy, used by every chart (labels are the displayed names).
+MODEL_COLOURS = {
+    "Naive (last price)": "#7f7f7f",
+    "ARIMA": "#1f77b4",
+    "Random Forest": "#2ca02c",
+    "XGBoost": "#d62728",
+}
+STRATEGY_COLOURS = {
+    "Sell forward (w = 1)": "#1f77b4",
+    "Wait (w = 0)": "#ff7f0e",
+    "Fixed 50/50": "#7f7f7f",
+    "Forecast-driven": "#9467bd",
+}
+PERIOD_LABELS = {
+    "full": "Full test period",
+    "pre_surge": "Pre-surge (2020–2022)",
+    "surge": "Surge (2023 – Jan 2025)",
+    "post_peak": "After the peak (Feb 2025 on)",
+}
+
+
+def dashes(df: pd.DataFrame, columns: list[str], fmt: str) -> pd.DataFrame:
+    """Format numeric columns as text, showing missing values as an en dash.
+
+    ``st.dataframe`` renders NaN as "None", which reads like an error in a screenshot.
+    """
+    out = df.copy()
+    for c in columns:
+        if c in out:
+            out[c] = out[c].map(lambda v: "–" if pd.isna(v) else format(v, fmt))
+    return out
+
+
+STRATEGY_LABELS = {
+    "sell_forward": "Sell forward (w = 1)",
+    "wait": "Wait (w = 0)",
+    "fixed_50_50": "Fixed 50/50",
+    "forecast_driven": "Forecast-driven",
+}
+
+
+def strategy_label(name: str) -> str:
+    """Human-readable strategy name."""
+    return STRATEGY_LABELS.get(name, name)
+
+
+def strategy_display(metrics_df: pd.DataFrame) -> pd.DataFrame:
+    """Readable strategy names; blank the 50/50 strategy's win rate against itself."""
+    out = metrics_df.copy()
+    if "win_rate_vs_5050" in out:
+        rate = out["win_rate_vs_5050"].map(lambda v: f"{v:.0%}")
+        rate[out["strategy"] == "fixed_50_50"] = "–"
+        out["win_rate_vs_5050"] = rate  # text, because st.dataframe shows NaN as "None"
+    out["strategy"] = out["strategy"].map(strategy_label)
+    return out
+
+
 def root() -> Path:
     """Project root used by the dashboard."""
     return Path(os.environ.get("COCOASENSE_ROOT", PROJECT_ROOT))

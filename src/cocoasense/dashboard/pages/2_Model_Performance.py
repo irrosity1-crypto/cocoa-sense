@@ -16,12 +16,7 @@ if table is None or preds is None:
     st.stop()
 
 periods: list[str] = ["full", "pre_surge", "surge", "post_peak"]
-names: dict[str, str] = {
-    "full": "Full test period",
-    "pre_surge": "Pre-surge (2020–2022)",
-    "surge": "Surge (2023 – Jan 2025)",
-    "post_peak": "After the peak (Feb 2025 on)",
-}
+names: dict[str, str] = data.PERIOD_LABELS
 c1, c2 = st.columns(2)
 period = c1.selectbox(
     "Period (by target month)",
@@ -46,6 +41,8 @@ show = sel[
     ]
 ].copy()
 show["model"] = show["model"].map(data.label)
+show["n"] = show["n"].astype(int)
+show = data.dashes(show, ["directional_acc", "dm_pvalue"], ".3f")
 st.dataframe(
     show.rename(
         columns={
@@ -60,7 +57,16 @@ st.dataframe(
             "coverage": "80 % interval coverage",
             "dm_pvalue": "DM p-value vs naive",
         }
-    ).style.format(precision=3),
+    ).style.format(
+        {
+            "MAE US$/t": "{:,.0f}",
+            "RMSE US$/t": "{:,.0f}",
+            "MAPE %": "{:.2f}",
+            "MAE vs naive": "{:.3f}",
+            "Within ±10 %": "{:.0%}",
+            "80 % interval coverage": "{:.0%}",
+        }
+    ),
     hide_index=True,
     use_container_width=True,
 )
@@ -69,19 +75,24 @@ st.caption(
     "has low power on samples this small; treat p-values as indicative."
 )
 
+bars = table[(table["horizon"] == horizon) & (table["period"] != "full")].copy()
+bars["model"] = bars["model"].map(data.label)
+bars["period"] = bars["period"].map(data.PERIOD_LABELS)
 fig = px.bar(
-    table[(table["horizon"] == horizon) & (table["period"] != "full")],
+    bars,
     x="period",
     y="mape",
     color="model",
     barmode="group",
     labels={"period": "Test sub-period", "mape": "MAPE, %", "model": "Model"},
-    category_orders={"period": periods[1:]},
+    category_orders={"period": [data.PERIOD_LABELS[p] for p in periods[1:]]},
+    color_discrete_map=data.MODEL_COLOURS,
 )
 st.plotly_chart(fig, use_container_width=True)
 
 st.subheader("Error over time")
 p = preds[preds["horizon"] == horizon].copy()
+p["model"] = p["model"].map(data.label)
 p["ape"] = (p["y_pred"] - p["y_true"]).abs() / p["y_true"] * 100
 window = st.slider("Rolling window (months)", 1, 12, 6)
 p = p.sort_values("target_date")
@@ -96,6 +107,7 @@ fig2 = px.line(
         "rolling_mape": f"{window}-month MAPE, %",
         "model": "Model",
     },
+    color_discrete_map=data.MODEL_COLOURS,
 )
 st.plotly_chart(fig2, use_container_width=True)
 
