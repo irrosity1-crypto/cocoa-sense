@@ -49,6 +49,18 @@ On Linux/macOS `make reproduce`, `make lint` and `make test` do the same.
 All screenshots, including the Forecast Explorer before reveal and the Data and Method page, are in
 `docs/figures/`.
 
+### Desktop app (Windows)
+
+```bash
+uv run cocoasense install-shortcut   # once: puts a "CocoaSense AI" icon on the desktop
+```
+
+Double-click the icon to open the dashboard in its own window (Edge or Chrome in app mode: no
+tabs or address bar, no console). The local server starts on a free port and stops when the
+window is closed; opening the icon again while it is open just adds a window. `uv run cocoasense
+app` does the same from a terminal. The log, icon and window profile are kept in
+`%LOCALAPPDATA%\CocoaSense`; if the window does not appear, `dashboard.log` there says why.
+
 ## Pipeline
 
 ```
@@ -73,6 +85,7 @@ data/raw (immutable + manifest.json)
 | `cocoasense simulate` | forward-sales simulation, stress scenarios, sensitivity |
 | `cocoasense report` | figures in `artifacts/figures/` |
 | `cocoasense dashboard` | Streamlit app (reads artifacts only) |
+| `cocoasense app` / `install-shortcut` | the dashboard as a desktop app window / a desktop icon that opens it (Windows) |
 | `cocoasense lstm train` / `lstm freeze` / `lstm evaluate --final` | the LSTM stretch model's own validation → freeze → final cycle (`configs/frozen_lstm.yaml`) |
 
 ## Repository layout
@@ -88,6 +101,7 @@ src/cocoasense/
   evaluation/ frozen-origin walk-forward, metrics, experiments, reports, figures
   simulation/ strategies, engine, futures provider, metrics, cedi conversion
   dashboard/  Streamlit multipage app
+  desktop.py  desktop launcher (app window, desktop shortcut)
 tests/        unit, integration, leakage (5 mandatory tests), dashboard smoke tests
 docs/         methodology, decisions, data sources, simulation assumptions, limitations, results
 artifacts/    metrics tables, forecasts, simulation results, figures, final-run log
