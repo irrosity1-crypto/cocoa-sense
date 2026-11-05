@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from cocoasense.dashboard import data, ui
+from cocoasense.evaluation.explain import describe_value, grouped
 from cocoasense.evaluation.insights import brier, confidence_check, explain
 
 data.page_header("Live Forecast")
@@ -235,6 +236,76 @@ with g2:
                 icon="⚠️",
             )
         st.plotly_chart(bar, use_container_width=True, theme=None)
+
+# ------------------------------------------------------------ why this forecast
+st.subheader(f"Why does {pick} forecast this?")
+model_key = str(row["model"])
+expl = data.metrics("live_explanations.csv")
+if model_key in ("random_forest", "xgboost") and expl is not None:
+    ex = expl[(expl["model"] == model_key) & (expl["horizon"] == horizon)]
+    if not ex.empty:
+        g = grouped(ex).head(7)
+        base_pct = float(ex["base"].iloc[0]) * 100
+        total_pct = float(ex["prediction"].iloc[0]) * 100
+        w1, w2 = st.columns([1.4, 1])
+        with w1:
+            bars = go.Figure(
+                go.Bar(
+                    x=g["contribution"] * 100,
+                    y=g["label"],
+                    orientation="h",
+                    marker_color=[
+                        ui.THEME["up"] if v > 0 else ui.THEME["down"] for v in g["contribution"]
+                    ],
+                    text=[f"{v * 100:+.1f}" for v in g["contribution"]],
+                    textposition="inside",
+                    insidetextanchor="middle",
+                    hovertemplate="%{y}: %{x:+.2f} percentage points<extra></extra>",
+                )
+            )
+            bars.update_layout(
+                height=330,
+                title="What pushed the forecast up (green) or down (red), in percentage points",
+                yaxis={"autorange": "reversed"},
+                xaxis={"zeroline": True, "zerolinecolor": ui.THEME["muted"]},
+            )
+            st.plotly_chart(bars, use_container_width=True, theme=None)
+        with w2:
+            top = g.iloc[0]
+            lines = [
+                f"On average this model expects a change of **{base_pct:+.1f}%** over "
+                f"{horizon} month{'s' if horizon > 1 else ''}. The current market moves that to "
+                f"**{total_pct:+.1f}%**.",
+            ]
+            for _, r in g.head(3).iterrows():
+                val = describe_value(str(r["feature"]), float(r["value"]))
+                way = "raises" if r["contribution"] > 0 else "lowers"
+                lines.append(
+                    f"- **{r['label']}**"
+                    + (f" ({val})" if val else "")
+                    + f" {way} the forecast by {abs(r['contribution']) * 100:.1f} points."
+                )
+            if top["feature"] == "log_price" and top["contribution"] < 0:
+                lines.append(
+                    "The biggest factor is how high the price is compared with history: the model "
+                    "learned that expensive cocoa has tended to fall back (mean reversion)."
+                )
+            st.markdown("\n".join(lines).replace("$", r"\$"))
+            st.caption(
+                "Exact breakdown of this forecast (Shapley values for XGBoost, decision-path "
+                "contributions for Random Forest). Points add up to the forecast change."
+            )
+elif model_key == "arima":
+    st.markdown(
+        "ARIMA has no list of inputs to break down. It is refitted each month on the history of "
+        "monthly price changes and projects the recent pattern of changes and surprises forward. "
+        f"Here that pattern gives a **{(row['y_pred'] / row['last_obs'] - 1) * 100:+.1f}%** move."
+    )
+else:
+    st.markdown(
+        "The naive forecast simply repeats the latest price. It is the benchmark every other "
+        "model has to beat."
+    )
 
 # ---------------------------------------------------------- revenue calculator
 st.subheader("What would a sale be worth?")

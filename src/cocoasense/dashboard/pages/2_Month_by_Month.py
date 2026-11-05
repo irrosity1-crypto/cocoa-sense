@@ -223,11 +223,54 @@ else:
     caption = f"Success = forecast within ±{thr:g} % of the actual price for that month."
 
 table = table.sort_values("Month", ascending=False)
+
+# Upcoming months: forecasts already made whose actual price is not published yet.
+pending = None
+all_rows = data.insights_rows()
+if all_rows is not None and show == "All":
+    pending = all_rows[
+        (all_rows["track"] == track)
+        & (all_rows["horizon"] == horizon)
+        & all_rows["y_true"].isna()
+        & all_rows["model"].isin(chosen)
+    ]
+if pending is not None and not pending.empty:
+    awaiting = "⏳ awaiting actual price"
+    if view == "One row per month":
+        up = pd.DataFrame({"Month": sorted(pending["target_date"].unique(), reverse=True)})
+        up["Actual US$/t"] = float("nan")
+        up["Actual GH₵/t"] = float("nan")
+        for m in [x for x in model_opts if x in chosen]:
+            rows_m = pending[pending["model"] == m].set_index("target_date")
+            up[f"{data.label(m)} forecast"] = up["Month"].map(rows_m["y_pred"])
+            up[f"{data.label(m)} error %"] = float("nan")
+        up["Models within range"] = awaiting
+    else:
+        up = pending.assign(Model=pending["model"].map(data.label))[
+            ["target_date", "Model", "y_pred", "confidence"]
+        ].rename(
+            columns={
+                "target_date": "Month",
+                "y_pred": "Forecast US$/t",
+                "confidence": "Confidence at the time",
+            }
+        )
+        up["Actual US$/t"] = float("nan")
+        up["Error %"] = float("nan")
+        up["Result"] = awaiting
+        up = up.sort_values("Month", ascending=False)
+    table = pd.concat([up[[c for c in table.columns if c in up.columns]], table], ignore_index=True)
+    caption += (
+        f" The top {up['Month'].nunique()} month(s) are forecasts awaiting the published price; "
+        "they are not counted in the rates above."
+    )
+elif track == "frozen":
+    caption += " Upcoming months are forecast by the learning models; switch to that view."
 table["Month"] = pd.to_datetime(table["Month"]).dt.strftime("%b %Y")
 err_cols = [c for c in table.columns if c.endswith("error %") or c == "Error %"]
 money = [c for c in table.columns if "US$" in c or "GH₵" in c or c.endswith("forecast")]
 styler = table.style.format(
-    {**{c: "{:,.0f}" for c in money}, **{c: "{:+.1f}" for c in err_cols}}
+    {**{c: "{:,.0f}" for c in money}, **{c: "{:+.1f}" for c in err_cols}}, na_rep="–"
 ).map(colour_error, subset=err_cols)
 st.dataframe(styler, hide_index=True, use_container_width=True, height=520)
 st.caption(f"{len(table):,} rows shown. {caption}")
