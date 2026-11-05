@@ -171,5 +171,21 @@ def dashboard() -> None:  # pragma: no cover - launches a server
     )
 
 
+@app.command("app")
+def desktop_app() -> None:  # pragma: no cover - opens a window
+    """Open the dashboard in its own app window; closing the window stops the server."""
+    from cocoasense.desktop import launch
+
+    launch()
+
+
+@app.command("install-shortcut")
+def install_shortcut() -> None:  # pragma: no cover - writes to the Windows desktop
+    """Put a 'CocoaSense AI' shortcut on the Windows desktop that opens the app window."""
+    from cocoasense.desktop import create_shortcut
+
+    typer.echo(f"shortcut created: {create_shortcut()}")
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()
