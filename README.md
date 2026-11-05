@@ -47,8 +47,8 @@ On Linux/macOS `make reproduce`, `make lint` and `make test` do the same.
 | **Model Performance** — accuracy by period, error over time | **Strategy Simulator** — selling strategies recomputed from stored forecasts |
 | ![Live Forecast](docs/figures/dashboard_07_live_forecast.png) | ![Scorecard](docs/figures/dashboard_08_scorecard.png) |
 | **Live Forecast** — next months' forecasts, confidence, plain-language explanation, "update prices" button | **Scorecard** — success vs fail, direction, range hits, do the confidence labels hold up, learning vs frozen |
-| ![Predicted vs Actual](docs/figures/dashboard_09_predicted_vs_actual.png) | |
-| **Predicted vs Actual** — every forecast next to the real price with its margin of error | |
+| ![Predicted vs Actual](docs/figures/dashboard_09_predicted_vs_actual.png) | ![Month by month](docs/figures/dashboard_10_month_by_month.png) |
+| **Predicted vs Actual** — every forecast next to the real price with its margin of error | **Month by month** — every month's actual price and each model's forecast, filterable, with the overall success and failure rate |
 
 All screenshots, including the Forecast Explorer before reveal and the Data and Method page, are in
 `docs/figures/`.
