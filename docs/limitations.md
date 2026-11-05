@@ -39,4 +39,5 @@
     forecasts turned out; they are not guarantees. Checked on 2020–2026 they were informative only
     in part (a High label at 1 month and a Low label at 3 months held up; the others did not rank
     outcomes), and the up/down probability had no skill. Monthly refitting did not improve
-    accuracy. "Live" prices are the latest published monthly averages, not intraday quotes.
+    accuracy. "Live" prices are the latest published monthly averages, not daily or intraday
+    quotes; no free, openly licensed daily source exists (decision D20).

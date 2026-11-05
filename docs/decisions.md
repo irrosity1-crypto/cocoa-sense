@@ -208,3 +208,20 @@ Each entry: date, options considered, choice, reason. Newest last.
   Free data is monthly, so "live" means the latest published monthly average.
 - **Not done:** no intraday prices (no open licence); no trading advice; the confidence labels
   describe past performance of similar forecasts, not guarantees.
+
+## D20 · 2026-11-05 · Automatic monthly updates; daily prices not possible from this data
+- **Context:** the author asked for the system to download each new monthly release by itself
+  when online and retrain without intervention, and for daily price forecasts.
+- **Choice:** a Windows scheduled task (`cocoasense schedule-updates`) runs
+  `pythonw -m cocoasense.autoupdate` daily at 09:00 and at every log-on, only when a network is
+  available, catching up on missed runs. Each source is downloaded to a scratch file and compared
+  by its parsed values, not its bytes (the IMF file is re-stamped on every download); only real
+  changes replace the raw file (old copy archived) and trigger validation, the learning-track
+  refit and new insights. Offline runs do nothing and retry later; data that fails validation
+  leaves the previous forecasts in place. The frozen track is never refitted.
+- **Daily prices:** not implemented. The monthly releases contain one monthly average, so
+  retraining on them cannot teach daily behaviour, and no free, openly licensed daily cocoa
+  source was found (Stooq requires a browser check, which would mean bypassing a block; ICCO
+  daily prices are viewable only, under copyright; Yahoo, Investing.com and Barchart forbid
+  automated download or redistribution). With a lawfully obtained daily CSV the same update
+  machinery could be extended.

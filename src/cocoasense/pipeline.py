@@ -48,9 +48,9 @@ from cocoasense.evaluation.metrics import assign_periods, score
 from cocoasense.evaluation.reports import leaderboard, write_table
 from cocoasense.evaluation.walk_forward import Window, forecast_window, log_final_run
 from cocoasense.features.build import build_features, build_targets
-from cocoasense.ingestion.download import download
+from cocoasense.ingestion.download import DownloadError, download
 from cocoasense.ingestion.manifest import ManifestEntry, sha256_of
-from cocoasense.ingestion.sources import Downloader, ingest_all
+from cocoasense.ingestion.sources import Downloader, check_source, ingest_all
 from cocoasense.models.base import Forecaster
 from cocoasense.models.registry import build_model
 from cocoasense.simulation.currency import annual_cedi, to_cedis
@@ -950,5 +950,49 @@ def stage_update(cfg: ProjectConfig, refresh: bool = True) -> dict[str, Any]:
         "data_through": f"{monthly.index.max():%Y-%m}",
     }
     with (cfg.paths.artifacts / "update_log.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record) + "\n")
+    return record
+
+
+def stage_auto_update(cfg: ProjectConfig, downloader: Downloader = download) -> dict[str, Any]:
+    """Unattended update: retrain and re-forecast only when a source has new data.
+
+    Run by the scheduled task. Offline or blocked sources are skipped (the next run retries);
+    a data-quality failure leaves the previous data and forecasts in place.
+    """
+    p = cfg.paths
+    changed, failed = [], []
+    for key, src in cfg.data.sources.items():
+        try:
+            if check_source(key, src, cfg, downloader):
+                changed.append(key)
+        except DownloadError as exc:
+            failed.append(key)
+            logger.warning("%s not checked: %s", key, str(exc).splitlines()[0])
+    first_run = not (p.forecasts / LEARNING).exists() or not (p.forecasts / INSIGHTS).exists()
+    status = "offline" if len(failed) == len(cfg.data.sources) else "no new data"
+    if changed or first_run:
+        try:
+            stage_validate(cfg)
+            stage_learn(cfg)
+            stage_insights(cfg)
+            status = "retrained on new data" if changed else "built forecasts"
+        except DataQualityError as exc:
+            status = "new data failed checks"
+            logger.error("new data failed validation; previous forecasts kept: %s", exc)
+        except MissingArtifactError as exc:
+            status = "project not built yet: run `cocoasense all`"
+            logger.error("%s", exc)
+    interim = p.interim / "monthly.parquet"
+    record = {
+        "timestamp": datetime.now(UTC).replace(microsecond=0).isoformat(),
+        "mode": "auto",
+        "status": status,
+        "changed": changed,
+        "not_checked": failed,
+        "data_through": f"{load_monthly(cfg).index.max():%Y-%m}" if interim.exists() else None,
+    }
+    p.artifacts.mkdir(parents=True, exist_ok=True)
+    with (p.artifacts / "update_log.jsonl").open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record) + "\n")
     return record

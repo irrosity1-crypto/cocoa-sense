@@ -102,3 +102,48 @@ def ingest_all(
         obtain_source(key, src, cfg, refresh=refresh, downloader=downloader)
         for key, src in cfg.data.sources.items()
     ]
+
+
+def check_source(
+    key: str, src: SourceConfig, cfg: ProjectConfig, downloader: Downloader = download
+) -> bool:
+    """Download ``key`` to a scratch file and keep it only if the data values changed.
+
+    Publishers re-stamp files (e.g. a "prepared" timestamp) without changing any value, so the
+    comparison is on the parsed series, not the bytes. When values changed, the old raw file is
+    archived and the manifest updated. Returns whether the data changed. Raises
+    ``DownloadError`` when offline or blocked.
+    """
+    paths = cfg.paths
+    dest = paths.raw / src.file
+    scratch_dir = paths.raw / "archive" / "_check"
+    scratch_dir.mkdir(parents=True, exist_ok=True)
+    scratch = scratch_dir / Path(src.file).name
+    downloader(src.url, scratch, paths.manual)
+    new = PARSERS[key](scratch)
+    if dest.exists():
+        old = PARSERS[key](dest)
+        if old.dropna().equals(new.dropna()):
+            scratch.unlink(missing_ok=True)
+            logger.info("%s: no new data", key)
+            return False
+        _archive(dest, paths.raw)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(scratch), str(dest))
+    write_entry(
+        paths.manifest,
+        ManifestEntry(
+            path=src.file,
+            source=key,
+            url=src.url,
+            origin="download",
+            retrieved_at=_now(),
+            sha256=sha256_of(dest),
+            bytes=dest.stat().st_size,
+            rows=int(new.notna().sum()),
+            date_min=_iso(new.first_valid_index()),
+            date_max=_iso(new.last_valid_index()),
+        ),
+    )
+    logger.info("%s: new data through %s", key, _iso(new.last_valid_index()))
+    return True
