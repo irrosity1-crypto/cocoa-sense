@@ -1,0 +1,36 @@
+# Frozen improvement addendum (D23). Commit BEFORE `cocoasense improve final`.
+created_at: '2026-11-05T15:24:25+00:00'
+note: Chosen on 2016-2019 validation forecasts by the rules in configs/improve.yaml,
+  before any candidate was scored on the test period.
+decisions:
+  ensemble:
+    adopt: false
+    members:
+    - arima
+    - random_forest
+    - xgboost
+    validation_mae:
+      1: 91.59
+      3: 195.05
+    members_validation_mae:
+      arima:
+        1: 93.51
+        3: 201.51
+      random_forest:
+        1: 91.13
+        3: 196.05
+      xgboost:
+        1: 93.2
+        3: 190.05
+  volatility_scaled_intervals:
+    adopt_for:
+    - xgboost
+    - ensemble
+  volatility_guard:
+    adopt: true
+    validation_revenue:
+      forecast_driven: 2426.54
+      forecast_driven+guard: 2426.54
+      fixed_50_50: 2384.18
+improve_config_sha256: 233bc17d3ed2177945e4830269ea20368fc8368a56216f0d3273a9107244183f
+main_frozen_sha256: c6b8752c40681e7a0a750455b4a6f62704a39dc4853b5d2498452c98fdb61156

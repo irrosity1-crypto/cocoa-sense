@@ -1,0 +1,4 @@
+rule,mean_revenue_per_t,guarded_months,n_dates
+forecast_driven,2426.5420621361054,0,48
+forecast_driven+guard,2426.5420621361054,0,48
+fixed_50_50,2384.1770833333335,0,48
