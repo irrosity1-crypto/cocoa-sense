@@ -1,0 +1,139 @@
+{
+  "lstm@1960": {
+    "train_start": "1960-01-01",
+    "train_target_max": "2015-12-01",
+    "last_label_date": {
+      "1": "2015-12-01",
+      "3": "2015-12-01"
+    },
+    "best_params": {
+      "1": {
+        "inputs": [
+          "ret_1m"
+        ],
+        "lookback": 24,
+        "hidden_size": 8
+      },
+      "3": {
+        "inputs": [
+          "ret_1m",
+          "log_price"
+        ],
+        "lookback": 24,
+        "hidden_size": 8
+      }
+    },
+    "cv_mae_logret": {
+      "1": 0.055273,
+      "3": 0.123028
+    },
+    "conformal_halfwidth_logret": {
+      "1": 0.08556789237220146,
+      "3": 0.19446701035391156
+    },
+    "n_train_rows": {
+      "1": 647,
+      "3": 645
+    },
+    "training": {
+      "epochs": 200,
+      "learning_rate": 0.01,
+      "weight_decay": 0.0001,
+      "n_seeds": 3
+    },
+    "fit_seconds": 137.45,
+    "total_seconds": 137.89,
+    "fit_end": "2015-12-01"
+  },
+  "lstm@1980": {
+    "train_start": "1980-01-01",
+    "train_target_max": "2015-12-01",
+    "last_label_date": {
+      "1": "2015-12-01",
+      "3": "2015-12-01"
+    },
+    "best_params": {
+      "1": {
+        "inputs": [
+          "ret_1m"
+        ],
+        "lookback": 24,
+        "hidden_size": 8
+      },
+      "3": {
+        "inputs": [
+          "ret_1m"
+        ],
+        "lookback": 24,
+        "hidden_size": 16
+      }
+    },
+    "cv_mae_logret": {
+      "1": 0.052914,
+      "3": 0.123882
+    },
+    "conformal_halfwidth_logret": {
+      "1": 0.08804007149001242,
+      "3": 0.21130609186161114
+    },
+    "n_train_rows": {
+      "1": 431,
+      "3": 429
+    },
+    "training": {
+      "epochs": 200,
+      "learning_rate": 0.01,
+      "weight_decay": 0.0001,
+      "n_seeds": 3
+    },
+    "fit_seconds": 104.84,
+    "total_seconds": 105.24,
+    "fit_end": "2015-12-01"
+  },
+  "lstm@1991": {
+    "train_start": "1991-01-01",
+    "train_target_max": "2015-12-01",
+    "last_label_date": {
+      "1": "2015-12-01",
+      "3": "2015-12-01"
+    },
+    "best_params": {
+      "1": {
+        "inputs": [
+          "ret_1m"
+        ],
+        "lookback": 12,
+        "hidden_size": 8
+      },
+      "3": {
+        "inputs": [
+          "ret_1m",
+          "log_price"
+        ],
+        "lookback": 12,
+        "hidden_size": 8
+      }
+    },
+    "cv_mae_logret": {
+      "1": 0.064139,
+      "3": 0.114594
+    },
+    "conformal_halfwidth_logret": {
+      "1": 0.10652844748905947,
+      "3": 0.18121014041816272
+    },
+    "n_train_rows": {
+      "1": 299,
+      "3": 297
+    },
+    "training": {
+      "epochs": 200,
+      "learning_rate": 0.01,
+      "weight_decay": 0.0001,
+      "n_seeds": 3
+    },
+    "fit_seconds": 84.86,
+    "total_seconds": 85.26,
+    "fit_end": "2015-12-01"
+  }
+}
