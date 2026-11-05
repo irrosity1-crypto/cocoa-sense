@@ -56,3 +56,9 @@ sub-period (pre-surge, surge, post-peak).
 
 Delivery price set to 1.20×, 0.85× or 1.00× the decision-date price, holding the forecast-driven
 shares fixed. These show how each rule behaves under a given move; they are not predictions.
+
+## Cedi view (reporting only)
+
+Each delivery's US$ revenue (forward and spot shares) is converted at the delivery month's IMF
+average GHS/US$ rate. Deliveries without an observed rate are dropped, not extrapolated. Decisions
+are still made in US$; no cedi-aware rule is simulated (decision D17).

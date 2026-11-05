@@ -20,7 +20,9 @@
 6. **Regime break.** The 2023–25 price surge was driven by supply shocks (weather, disease,
    smuggling, under-investment) that are not in the price history the models see.
 7. **Exchange rate coverage.** The monthly FX series ends January 2026, so the FX experiment
-   covers a slightly shorter test window than the main models.
+   covers a slightly shorter test window than the main models, and the cedi revenue view covers
+   deliveries to January 2026 only (73 of 82). The cedi view uses a monthly average rate; the
+   rates COCOBOD actually received are not public.
 8. **No fundamentals.** Production, grindings and stocks data (paid ICCO bulletins) are not used.
 9. **Model scope.** Futures-curve simulation is a stretch item and is not part of the results.
    The LSTM stretch model was added after the main test run (decision D16). Its configuration and

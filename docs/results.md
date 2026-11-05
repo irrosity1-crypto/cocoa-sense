@@ -209,9 +209,36 @@ h = 3 kept from the XGBoost-based freeze), mean revenue was 4,335 US$/t vs 4,204
 `a` was not tuned for the LSTM, the LSTM's forecasts were less accurate overall, and the gain comes
 from a single exceptional rally in a 7-year window.
 
+## 9. Cedi revenue view (stretch, reporting only)
+
+The frozen simulation's US$ revenue converted to Ghana cedis at each delivery month's IMF average
+rate (decision D17). The rate series ends January 2026, so 73 of the 82 deliveries are covered
+(Jan 2020 – Jan 2026); the other nine are left out, not extrapolated
+(`artifacts/simulation/cedi_strategy_metrics.md`, `cedi_annual.md`).
+
+| Strategy (73 deliveries) | Mean US$/t | vs 50/50 | Mean GHS/t | vs 50/50 |
+|---|---|---|---|---|
+| Fixed 50/50 | 4,163 | – | 46,600 | – |
+| Forecast-driven | 4,160 | −0.08 % | 46,531 | −0.15 % |
+| Sell forward | 4,153 | −0.23 % | 46,311 | −0.62 % |
+| Wait | 4,172 | +0.23 % | 46,889 | +0.62 % |
+
+- **The ranking does not change.** All strategies on a date are converted at the same rate, so the
+  winner on each date and the win rates are identical to the US$ view. The gaps widen in cedis
+  because the dates where strategies differed most (the 2023–25 rally) fell in weak-cedi years.
+- **On this shorter window the forecast-driven rule is almost level with 50/50** (−0.08 % in US$),
+  compared with −0.8 % over all 82 deliveries. In the nine uncovered deliveries (Feb–Oct 2026) it
+  trailed 50/50 by 283 US$/t on average, against 3 US$/t in the covered ones.
+- **Most cedi growth came from cocoa prices, a large part from the cedi.** For Fixed 50/50, mean
+  revenue rose from 13,168 GHS/t (2020 deliveries) to 101,871 GHS/t (2025), ×7.7. The US$ price
+  effect was ×3.4 and the average rate went from 5.60 to 12.56 GHS/US$ (×2.2): about 60 % of the
+  rise in log terms came from cocoa prices and 40 % from depreciation. In 2025 the cedi
+  strengthened (14.18 → 12.56), so cedi revenue rose less than US$ revenue that year.
+- These are simulated outcomes on public prices, not COCOBOD's actual cedi revenue.
+
 ## Figures
 
 `artifacts/figures/`: `eda_price_history.png`, `eda_returns_volatility.png`,
 `eda_exchange_rate.png`, `validation_actual_vs_pred_h{1,3}.png`, `test_actual_vs_pred_h{1,3}.png`,
 `test_rolling_mape_h{1,3}.png`, `test_error_by_period.png`, `simulation_strategy_outcomes.png`,
-`test_actual_vs_pred_with_lstm_h{1,3}.png`.
+`test_actual_vs_pred_with_lstm_h{1,3}.png`, `simulation_cedi_revenue.png`.

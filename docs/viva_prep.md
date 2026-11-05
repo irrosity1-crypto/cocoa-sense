@@ -32,6 +32,11 @@ An LSTM was added afterwards as a stretch model with its own validation → free
 (1-month MAPE 8.13 %), but the best in the 2023–25 surge, because it learned momentum where the
 trees learned mean reversion. Neither belief held across regimes.
 
+**What does it look like in cedis?**
+Converted at the delivery-month rate (D17), the ranking of strategies is the same, because every
+strategy on a date gets the same rate. Simulated cedi revenue per tonne rose ×7.7 from 2020 to
+2025; about 60 % of that (in log terms) was cocoa prices and 40 % cedi depreciation.
+
 **Is this Ghana's real gain or loss?**
 No. It is a simulation on public monthly prices with a spot-proxy forward price. Contract terms,
 basis, financing arrangements and delivery obligations are not public (`docs/limitations.md`).

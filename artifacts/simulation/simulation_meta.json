@@ -4,5 +4,11 @@
   "a": 2.0,
   "horizon": 3,
   "quantity_t": 1000.0,
-  "financing_rate_annual": 0.1
+  "financing_rate_annual": 0.1,
+  "cedi_view": {
+    "deliveries": 73,
+    "of": 82,
+    "first_delivery": "2020-01",
+    "last_delivery": "2026-01"
+  }
 }
