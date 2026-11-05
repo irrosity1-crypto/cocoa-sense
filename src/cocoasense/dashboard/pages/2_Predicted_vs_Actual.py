@@ -47,7 +47,7 @@ sel = sel.assign(
     ).astype(str),
     pct_error=(sel["y_pred"] - sel["y_true"]) / sel["y_true"] * 100,
 )
-RESULT_COLOURS = {"Within 5 %": "#2ca02c", "Within 10 %": "#ff9f1c", "Missed": "#d62728"}
+RESULT_COLOURS = {"Within 5 %": "#16c784", "Within 10 %": "#fbbf24", "Missed": "#ea3943"}
 
 k1, k2, k3, k4 = st.columns(4)
 k1.metric("Forecasts", len(sel))
@@ -72,14 +72,19 @@ fig.add_trace(
         x=pd.concat([sel["target_date"], sel["target_date"][::-1]]),
         y=pd.concat([sel["upper"], sel["lower"][::-1]]),
         fill="toself",
-        fillcolor="rgba(31,119,180,0.12)",
+        fillcolor="rgba(76,141,255,0.14)",
         line={"width": 0},
         name="80 % range",
         hoverinfo="skip",
     )
 )
 fig.add_trace(
-    go.Scatter(x=sel["target_date"], y=sel["y_true"], name="Actual price", line={"color": "black"})
+    go.Scatter(
+        x=sel["target_date"],
+        y=sel["y_true"],
+        name="Actual price",
+        line={"color": "#e6e9ef", "width": 2},
+    )
 )
 fig.add_trace(
     go.Scatter(
@@ -87,7 +92,7 @@ fig.add_trace(
         y=sel["y_pred"],
         name="Forecast",
         mode="lines+markers",
-        line={"color": "#1f77b4", "width": 1},
+        line={"color": "#4c8dff", "width": 1},
         marker={"color": sel["Result"].map(RESULT_COLOURS), "size": 7},
         customdata=sel[["abs_pct_error", "Result"]],
         hovertemplate="%{x|%b %Y}<br>Forecast US$%{y:,.0f}/t<br>Error %{customdata[0]:.1f} %"
@@ -101,7 +106,7 @@ fig.update_layout(
     title=f"{data.label(model)}: forecast vs actual ({horizon}-month horizon)",
     legend={"orientation": "h", "y": -0.2},
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, theme=None)
 
 # ----------------------------------------------------------- margin of error
 st.subheader("Margin of error, month by month")
@@ -114,9 +119,9 @@ bars = px.bar(
     labels={"target_date": "Month being forecast", "pct_error": "Forecast − actual (% of actual)"},
 )
 for y in (-10, -5, 5, 10):
-    bars.add_hline(y=y, line_dash="dot", line_color="#999")
+    bars.add_hline(y=y, line_dash="dot", line_color="#3a4352")
 bars.update_layout(height=360)
-st.plotly_chart(bars, use_container_width=True)
+st.plotly_chart(bars, use_container_width=True, theme=None)
 
 c1, c2 = st.columns(2)
 with c1:
@@ -137,23 +142,23 @@ with c1:
             y=[lo * factor, hi * factor],
             mode="lines",
             name=name,
-            line={"color": "black" if style else "#bbb", "dash": style},
+            line={"color": "#e6e9ef" if style else "#3a4352", "dash": style},
         )
     sc.update_layout(height=400, title="Forecast against actual")
-    st.plotly_chart(sc, use_container_width=True)
+    st.plotly_chart(sc, use_container_width=True, theme=None)
 with c2:
     hist = px.histogram(
         sel,
         x="pct_error",
         nbins=30,
         labels={"pct_error": "Forecast − actual (%)"},
-        color_discrete_sequence=["#1f77b4"],
+        color_discrete_sequence=["#4c8dff"],
     )
-    hist.add_vline(x=0, line_color="black")
+    hist.add_vline(x=0, line_color="#e6e9ef")
     hist.update_layout(
         height=400, title="How big were the errors?", yaxis_title="Number of forecasts"
     )
-    st.plotly_chart(hist, use_container_width=True)
+    st.plotly_chart(hist, use_container_width=True, theme=None)
 
 # ----------------------------------------------------------- table
 st.subheader("Every forecast")

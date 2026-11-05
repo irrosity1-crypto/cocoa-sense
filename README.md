@@ -53,6 +53,10 @@ On Linux/macOS `make reproduce`, `make lint` and `make test` do the same.
 All screenshots, including the Forecast Explorer before reveal and the Data and Method page, are in
 `docs/figures/`.
 
+The interface is a dark trading-terminal design: a scrolling market strip on every page (price,
+monthly move, cedi value, exchange rate, next forecast and confidence), headline price cards with
+up/down badges, and charts with 1Y/3Y/5Y/10Y/ALL range buttons (decision D22).
+
 ### Cedi values and the live exchange rate
 
 Prices are shown in US dollars with their Ghana cedi equivalent (GH₵) across the dashboard, and

@@ -1,6 +1,8 @@
 [theme]
-# Cocoa palette: ochre accent instead of the default alarm red
-primaryColor = "#a8650f"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f5f1ea"
-textColor = "#231c17"
+# Dark trading-terminal palette (see src/cocoasense/dashboard/ui.py)
+base = "dark"
+primaryColor = "#e8a33d"
+backgroundColor = "#0b0e13"
+secondaryBackgroundColor = "#161b24"
+textColor = "#e6e9ef"
+font = "sans serif"

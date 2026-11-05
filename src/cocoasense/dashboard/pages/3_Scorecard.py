@@ -100,7 +100,7 @@ fig = px.bar(
 )
 fig.update_layout(yaxis_range=[0, 100], height=420)
 fig.add_hline(y=80, line_dash="dot", annotation_text="an 80 % range should hold 80 % of the time")
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, theme=None)
 st.caption(
     "The naive model predicts 'no change', so it has no direction; it is the benchmark every "
     "other model should beat."
@@ -113,7 +113,7 @@ counts["fail"] = counts["total"] - counts["success"]
 s1, s2 = st.columns([2, 1])
 with s1:
     stacked = go.Figure()
-    for kind, colour in (("success", "#2ca02c"), ("fail", "#d62728")):
+    for kind, colour in (("success", "#16c784"), ("fail", "#ea3943")):
         stacked.add_bar(
             y=counts["Model"],
             x=counts[kind],
@@ -130,7 +130,7 @@ with s1:
         xaxis_title="Number of forecasts",
         title=f"Success vs fail at ±{t:g} %",
     )
-    st.plotly_chart(stacked, use_container_width=True)
+    st.plotly_chart(stacked, use_container_width=True, theme=None)
 with s2:
     one = st.selectbox("Model for the pie", list(counts["Model"]), index=len(counts) - 1)
     r = counts[counts["Model"] == one].iloc[0]
@@ -139,11 +139,11 @@ with s2:
             labels=["Success", "Fail"],
             values=[r["success"], r["fail"]],
             hole=0.55,
-            marker_colors=["#2ca02c", "#d62728"],
+            marker_colors=["#16c784", "#ea3943"],
         )
     )
     pie.update_layout(height=320, title=one)
-    st.plotly_chart(pie, use_container_width=True)
+    st.plotly_chart(pie, use_container_width=True, theme=None)
 
 # ------------------------------------------------------------- over time
 st.subheader("Is it getting better or worse over time?")
@@ -160,7 +160,7 @@ fig = px.line(
     labels={"target_date": "Month forecast", "rate": f"% within ±{t:g} % (last 12 months)"},
 )
 fig.update_layout(yaxis_range=[0, 100], height=380)
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, theme=None)
 
 # ------------------------------------------------------------- direction
 st.subheader("Did the models call the direction?")
@@ -172,7 +172,7 @@ act_up = np.where(dm["y_true"] > dm["last_obs"], "Actually up", "Actually down")
 matrix = pd.crosstab(pd.Series(pred_up, name="Forecast"), pd.Series(act_up, name="Actual"))
 heat = px.imshow(matrix, text_auto=True, color_continuous_scale="Greens", aspect="auto")
 heat.update_layout(height=300, coloraxis_showscale=False)
-d1.plotly_chart(heat, use_container_width=True)
+d1.plotly_chart(heat, use_container_width=True, theme=None)
 d2.metric("Direction right", f"{dm['direction_correct'].mean():.0%}", f"{len(dm)} forecasts")
 d2.caption("Correct calls are on the diagonal. A coin flip would get about 50 %.")
 
@@ -201,10 +201,10 @@ if not check.empty:
         y=check["predicted_p_within_10"],
         name="Estimated chance at the time",
         mode="markers",
-        marker={"size": 14, "symbol": "diamond", "color": "black"},
+        marker={"size": 14, "symbol": "diamond", "color": "#e6e9ef"},
     )
     fig.update_layout(yaxis_range=[0, 100], yaxis_title="%", height=360)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, theme=None)
 
 cal = probability_calibration(tr)
 if not cal.empty:
@@ -226,7 +226,7 @@ if not cal.empty:
         xaxis_range=[0, 1],
         yaxis_range=[0, 1],
     )
-    c1.plotly_chart(fig, use_container_width=True)
+    c1.plotly_chart(fig, use_container_width=True, theme=None)
     c2.metric("Brier score (lower is better)", f"{brier(tr):.3f}", "0.250 = coin flip", "off")
     c2.caption(
         "If the points follow the dotted line, a '70 % chance of a rise' really meant the price "
@@ -254,10 +254,10 @@ if {"frozen", "learning"} <= set(scored["track"]):
         barmode="group",
         text_auto=".1f",
         labels={"mape": "Average error (MAPE, %)"},
-        color_discrete_map={"Frozen": "#7f7f7f", "Learning": "#1f77b4"},
+        color_discrete_map={"Frozen": "#9aa4b2", "Learning": "#e8a33d"},
     )
     fig.update_layout(height=380)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, theme=None)
 
 with st.expander("Full scorecard table"):
     st.dataframe(card.style.format(precision=1), hide_index=True, use_container_width=True)

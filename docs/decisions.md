@@ -247,3 +247,16 @@ Each entry: date, options considered, choice, reason. Newest last.
   and Scorecard come first; a cocoa colour theme replaces the default red accent; "Direction
   correct" shown as a percentage; a revenue calculator in US$ and GHS; a Windows notification when
   the automatic check finds a new monthly price.
+
+## D22 · 2026-11-05 · Trading-terminal interface
+- **Context:** the author found the dashboard too plain and asked for a modern look in the style
+  of trading apps.
+- **Choice:** restyle the existing Streamlit app rather than rewrite it in another framework, so
+  every feature, the desktop launcher and the test suite carry over unchanged. A dark theme
+  (`.streamlit/config.toml`), shared CSS and a Plotly template live in
+  `src/cocoasense/dashboard/ui.py`. Every page gains a scrolling market strip (price, monthly
+  move, cedi value, exchange rate, next forecast and its confidence); Overview and Live Forecast
+  open with a headline price, up/down badges and KPI cards; the price chart has 1Y/3Y/5Y/10Y/ALL
+  range buttons. Colours follow trading conventions: green for rises and successes, red for falls
+  and misses, one gold accent. The look follows common conventions of such apps and copies none.
+- **Unchanged:** all numbers, wording of caveats and disclaimers, and every result.

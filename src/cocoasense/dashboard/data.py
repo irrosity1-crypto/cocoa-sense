@@ -34,17 +34,17 @@ MODEL_LABELS = {
 
 # One colour per model / strategy, used by every chart (labels are the displayed names).
 MODEL_COLOURS = {
-    "Naive (last price)": "#7f7f7f",
-    "ARIMA": "#1f77b4",
-    "Random Forest": "#2ca02c",
-    "XGBoost": "#d62728",
-    "LSTM": "#8c564b",
+    "Naive (last price)": "#9aa4b2",
+    "ARIMA": "#4c8dff",
+    "Random Forest": "#2dd4bf",
+    "XGBoost": "#a78bfa",
+    "LSTM": "#fbbf24",
 }
 STRATEGY_COLOURS = {
-    "Sell forward (w = 1)": "#1f77b4",
-    "Wait (w = 0)": "#ff7f0e",
-    "Fixed 50/50": "#7f7f7f",
-    "Forecast-driven": "#9467bd",
+    "Sell forward (w = 1)": "#4c8dff",
+    "Wait (w = 0)": "#fbbf24",
+    "Fixed 50/50": "#9aa4b2",
+    "Forecast-driven": "#a78bfa",
 }
 PERIOD_LABELS = {
     "full": "Full test period",
@@ -154,10 +154,10 @@ TRACK_LABELS = {
     "learning": "Learning (refitted every month)",
 }
 CONFIDENCE_COLOURS = {
-    "High": "#2ca02c",
-    "Medium": "#ff9f1c",
-    "Low": "#d62728",
-    "Not enough history": "#9e9e9e",
+    "High": "#16c784",
+    "Medium": "#fbbf24",
+    "Low": "#ea3943",
+    "Not enough history": "#8a93a3",
 }
 
 
@@ -274,10 +274,55 @@ def text(path: Path) -> str | None:
     return path.read_text(encoding="utf-8") if path.exists() else None
 
 
+def ticker_items() -> list[tuple[str, str, str]]:
+    """Market strip: price and its monthly move, cedi value, rate, next forecast, confidence."""
+    m = monthly()
+    if m is None:
+        return []
+    price = m["price_usd_t"].dropna()
+    items: list[tuple[str, str, str]] = []
+    last, prev = float(price.iloc[-1]), float(price.iloc[-2])
+    move = (last / prev - 1) * 100
+    items.append(("COCOA", f"US${last:,.0f}/t", "cs-acc"))
+    items.append(
+        ("1M", f"{'+' if move >= 0 else ''}{move:.1f}%", "cs-up" if move >= 0 else "cs-down")
+    )
+    fx = fx_latest()
+    if fx:
+        items.append(("IN CEDIS", f"GH₵{last * fx[1]:,.0f}/t", ""))
+        items.append(("USD/GHS", f"{fx[1]:.2f}", ""))
+    year = price.loc[price.index >= price.index[-1] - pd.DateOffset(months=11)]
+    items.append(("12M RANGE", f"{year.min():,.0f} – {year.max():,.0f}", ""))
+    rows = insights_rows()
+    if rows is not None:
+        live = rows[(rows["track"] == "learning") & rows["y_true"].isna() & (rows["horizon"] == 1)]
+        live = live[live["model"] != "naive"]
+        if not live.empty:
+            cons = float(live["y_pred"].mean())
+            chg = (cons / last - 1) * 100
+            when = pd.Timestamp(live["target_date"].iloc[0])
+            items.append(
+                (
+                    f"{when:%b %y} FORECAST".upper(),
+                    f"US${cons:,.0f} ({'+' if chg >= 0 else ''}{chg:.1f}%)",
+                    "cs-up" if chg >= 0 else "cs-down",
+                )
+            )
+            conf = live["confidence"].mode().iloc[0]
+            cls = {"High": "cs-up", "Low": "cs-down"}.get(conf, "cs-acc")
+            items.append(("CONFIDENCE", str(conf).upper(), cls))
+    items.append(("DATA TO", f"{price.index[-1]:%b %Y}", ""))
+    return items
+
+
 def page_header(title: str) -> None:
-    """Page title plus the permanent disclaimer banner."""
+    """Page title, terminal styling, market ticker and the permanent disclaimer banner."""
+    from cocoasense.dashboard import ui
+
     st.set_page_config(page_title=f"CocoaSense AI · {title}", layout="wide")
+    ui.apply_style()
     st.title(title)
+    ui.ticker(ticker_items())
     st.warning(DISCLAIMER, icon="⚠️")
     fx_sidebar()
 
