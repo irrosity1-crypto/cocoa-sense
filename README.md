@@ -29,7 +29,7 @@ git clone https://github.com/irrosity1-crypto/cocoa-sense.git
 cd cocoa-sense
 uv sync --all-groups          # exact versions from uv.lock
 uv run cocoasense all         # raw data -> validation -> models -> test -> simulation -> figures
-                              # (about 15 minutes; the LSTM stages take most of it)
+                              # (about 17 minutes on a laptop CPU; the LSTM stages take over half)
 uv run cocoasense dashboard   # opens the dashboard in a browser
 ```
 

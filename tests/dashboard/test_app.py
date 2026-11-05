@@ -43,7 +43,7 @@ def built(tmp_path_factory: pytest.TempPathFactory) -> Path:
     )
 
     root = tmp_path_factory.mktemp("dash")
-    shutil.copytree(REPO_CONFIGS, root / "configs", ignore=shutil.ignore_patterns("frozen.yaml"))
+    shutil.copytree(REPO_CONFIGS, root / "configs", ignore=shutil.ignore_patterns("frozen*.yaml"))
     for name, override in SMALL_OVERRIDES.items():
         path = root / "configs" / name
         content = yaml.safe_load(path.read_text(encoding="utf-8"))

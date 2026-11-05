@@ -126,7 +126,7 @@ SMALL_OVERRIDES = {
 def project(tmp_path: Path) -> ProjectConfig:
     """A temporary project root with repo configs, small grids and a SYNTHETIC timeline."""
     cfg_dir = tmp_path / "configs"
-    shutil.copytree(REPO_CONFIGS, cfg_dir, ignore=shutil.ignore_patterns("frozen.yaml"))
+    shutil.copytree(REPO_CONFIGS, cfg_dir, ignore=shutil.ignore_patterns("frozen*.yaml"))
     for name, override in SMALL_OVERRIDES.items():
         path = cfg_dir / name
         content = yaml.safe_load(path.read_text(encoding="utf-8"))
