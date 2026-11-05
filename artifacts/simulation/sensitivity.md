@@ -37,6 +37,7 @@
 | sell_forward | 82 | 4194.512 | 2420.020 | 2264.444 | 2100.000 | 427.201 | 0.500 | 1.000 | horizon | 3.000 |
 | wait | 82 | 4214.284 | 2364.457 | 2204.694 | 2043.250 | 407.430 | 0.500 | 0.000 | horizon | 3.000 |
 | forecast_driven | 82 | 4239.617 | 2313.332 | 2263.183 | 2150.679 | – | – | 0.477 | driver_model | arima |
+| forecast_driven | 82 | 4334.855 | 2530.801 | 2250.087 | 2100.039 | – | – | 0.342 | driver_model | lstm |
 | forecast_driven | 82 | 4204.398 | 2294.961 | 2262.111 | 2156.625 | – | – | 0.500 | driver_model | naive |
 | forecast_driven | 82 | 4216.570 | 2341.468 | 2253.068 | 2122.545 | – | – | 0.565 | driver_model | random_forest |
 | forecast_driven | 82 | 4170.573 | 2404.510 | 2233.382 | 2100.000 | – | – | 0.651 | driver_model | xgboost |
