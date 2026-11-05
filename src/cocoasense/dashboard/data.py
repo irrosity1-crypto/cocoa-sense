@@ -161,6 +161,53 @@ CONFIDENCE_COLOURS = {
 }
 
 
+def fx_daily() -> pd.DataFrame:
+    """Stored daily US$ to cedi rates from the live API (empty if never fetched)."""
+    from cocoasense.ingestion.fx_live import read_daily
+
+    path = cfg().paths.artifacts / "fx" / "usd_ghs_daily.csv"
+    return read_daily(path)
+
+
+def fx_latest() -> tuple[pd.Timestamp, float, str] | None:
+    """Latest known rate: live API if fetched, else the last IMF monthly average."""
+    from cocoasense.ingestion.fx_live import latest
+
+    live = latest(fx_daily())
+    if live is not None:
+        return live
+    m = monthly()
+    if m is None or m["ghs_per_usd"].dropna().empty:
+        return None
+    s = m["ghs_per_usd"].dropna()
+    return pd.Timestamp(s.index[-1]), float(s.iloc[-1]), "IMF monthly average"
+
+
+def fx_monthly() -> pd.Series:
+    """One GHS-per-US$ rate per month: IMF where available, then live-API monthly averages."""
+    from cocoasense.ingestion.fx_live import combined_monthly
+
+    m = monthly()
+    imf = m["ghs_per_usd"] if m is not None else pd.Series(dtype=float)
+    out: pd.Series = combined_monthly(imf, fx_daily())["ghs_per_usd"]
+    return out
+
+
+def cedis(usd: float, rate: float | None) -> str:
+    """'GH₵12,345' for a US$ amount, or an empty string without a rate."""
+    return "" if rate is None or pd.isna(rate) else f"GH₵{usd * rate:,.0f}"
+
+
+def fx_sidebar() -> None:
+    """Show the current US$ to cedi rate in the sidebar on every page."""
+    fx = fx_latest()
+    if fx is None:
+        return
+    when, rate, source = fx
+    st.sidebar.markdown(f"**1 US$ = GH₵{rate:,.2f}**")
+    st.sidebar.caption(f"{when:%d %b %Y} · {source}")
+
+
 def insights_rows() -> pd.DataFrame | None:
     """Every test-period and live forecast with its ex-ante confidence (both tracks)."""
     return _load(cfg().paths.forecasts / "insights_predictions.parquet")
@@ -232,6 +279,7 @@ def page_header(title: str) -> None:
     st.set_page_config(page_title=f"CocoaSense AI · {title}", layout="wide")
     st.title(title)
     st.warning(DISCLAIMER, icon="⚠️")
+    fx_sidebar()
 
 
 def missing(what: str, command: str) -> None:

@@ -8,6 +8,7 @@ All sources are free and openly licensed. Exact files, retrieval times and SHA-2
 | `worldbank_pinksheet` | World Bank Commodity Price Data ("Pink Sheet"), monthly, cocoa column | US$/kg → converted to US$/tonne (× 1,000) | 1960-01 – 2026-10, 802 months | **Target series** |
 | `fred_pcocousdm` | IMF Global price of Cocoa, via FRED | US$/tonne | 1992-01 – 2026-09, 417 months | Cross-check only |
 | `imf_er_ghs_usd` | IMF Exchange Rates, Ghana, national currency per US$, period average | GHS per US$ (new cedis) | 1990-01 – 2026-01, 433 months | FX experiment (sub-question 2) |
+| live rate (D21) | fawazahmed0/exchange-api ("currency-api"), CC0, no key; `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{date or latest}/v1/currencies/usd.min.json` | GHS per US$, daily | sampled from 2026-02, updated on every run | Cedi values in the dashboard only; no model uses it |
 
 ## Details and terms
 

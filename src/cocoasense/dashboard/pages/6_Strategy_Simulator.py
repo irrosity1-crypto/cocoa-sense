@@ -79,17 +79,18 @@ currency = st.radio("Currency", ["US$", "Ghana cedis (GHS)"], horizontal=True, k
 unit, value, total_col = "US$", "revenue_per_t", "revenue"
 if currency != "US$":
     n_all = results["decision_date"].nunique()
-    cedi = to_cedis(results, monthly["ghs_per_usd"])
+    cedi = to_cedis(results, data.fx_monthly())
     if cedi.empty:
         st.info("No delivery month in this run has an observed exchange rate; showing US$.")
     else:
         results, unit, value, total_col = cedi, "GHS", "revenue_ghs_per_t", "revenue_ghs"
         st.caption(
-            "Each delivery is paid in US$ and converted at the delivery month's average GHS/US$ "
-            f"rate (IMF). The rate series ends {monthly['ghs_per_usd'].dropna().index.max():%b %Y}"
-            f", so {results['decision_date'].nunique()} of {n_all} deliveries are shown; later "
-            "ones are left out, not extrapolated. All strategies on a date share one rate, so "
-            "which strategy wins on each date is the same as in US$."
+            "Each delivery is paid in US$ and converted at the delivery month's average rate: "
+            "IMF monthly averages to January 2026, then averages of daily rates from the live "
+            f"currency-api service. {results['decision_date'].nunique()} of {n_all} deliveries "
+            "have a rate (months without one are left out, not extrapolated). All strategies on "
+            "a date share one rate, so which strategy wins on each date is the same as in US$. "
+            "The written results (docs/results.md, section 9) use IMF rates only."
         )
 
 m = data.strategy_display(strategy_metrics(results, value))

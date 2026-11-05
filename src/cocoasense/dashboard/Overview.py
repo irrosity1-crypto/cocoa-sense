@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -33,7 +34,9 @@ if monthly is None:
 
 ev = data.cfg().evaluation
 price = monthly["price_usd_t"].dropna()
-c1, c2, c3 = st.columns(3)
+fx = data.fx_latest()
+rate = fx[1] if fx else None
+c1, c2, c3, c4 = st.columns(4)
 c1.metric(
     "Months of price data",
     f"{len(price)}",
@@ -47,10 +50,20 @@ c2.metric(
 c3.metric(
     "Latest monthly price",
     f"US$ {price.iloc[-1]:,.0f}/t",
-    f"{price.index[-1]:%b %Y}",
+    f"{price.index[-1]:%b %Y} · ≈ {data.cedis(price.iloc[-1], rate)}/t"
+    if rate
+    else f"{price.index[-1]:%b %Y}",
     delta_color="off",
     delta_arrow="off",
 )
+if fx:
+    c4.metric(
+        "US$ to cedi rate",
+        f"GH₵ {fx[1]:,.2f}",
+        f"{fx[0]:%d %b %Y} · updates automatically",
+        delta_color="off",
+        delta_arrow="off",
+    )
 
 fig = go.Figure()
 fig.add_trace(
@@ -82,6 +95,35 @@ fig.update_layout(
     yaxis_title="US$ per tonne (log scale)",
 )
 st.plotly_chart(fig, use_container_width=True)
+
+fxm = data.fx_monthly()
+if not fxm.empty:
+    with st.expander("US$ to Ghana cedi rate", expanded=False):
+        recent = fxm.loc[fxm.index >= fxm.index.max() - pd.DateOffset(months=60)]
+        daily = data.fx_daily()
+        fxfig = go.Figure()
+        fxfig.add_trace(
+            go.Scatter(
+                x=recent.index, y=recent.values, name="Monthly average", line={"color": "#a8650f"}
+            )
+        )
+        if not daily.empty:
+            fxfig.add_trace(
+                go.Scatter(
+                    x=daily["date"],
+                    y=daily["ghs_per_usd"],
+                    name="Daily (live API)",
+                    mode="markers",
+                    marker={"size": 4, "color": "#3b2a1a"},
+                )
+            )
+        fxfig.update_layout(height=300, margin={"t": 10, "b": 10}, yaxis_title="GH₵ per US$")
+        st.plotly_chart(fxfig, use_container_width=True)
+        st.caption(
+            "IMF monthly averages up to January 2026, then the average of daily rates from the "
+            "free currency-api service (public domain), refreshed whenever the app updates "
+            "online. Used only to show cedi values; no model uses the exchange rate."
+        )
 
 st.subheader("Held-out test results (January 2020 onward)")
 table = data.test_metrics()

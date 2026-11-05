@@ -42,7 +42,8 @@ show = sel[
 ].copy()
 show["model"] = show["model"].map(data.label)
 show["n"] = show["n"].astype(int)
-show = data.dashes(show, ["directional_acc", "dm_pvalue"], ".3f")
+show = data.dashes(show, ["directional_acc"], ".0%")
+show = data.dashes(show, ["dm_pvalue"], ".3f")
 st.dataframe(
     show.rename(
         columns={

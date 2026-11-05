@@ -347,3 +347,46 @@ def remove_schedule() -> None:  # pragma: no cover - Windows only
         "-ErrorAction SilentlyContinue"
     )
     subprocess.run(["powershell", "-NoProfile", "-Command", script], check=True)
+
+
+# ---------------------------------------------------------------- notifications
+
+POWERSHELL_APP_ID = r"{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
+
+
+def _xml_escape(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def toast_script(title: str, body: str) -> str:
+    """PowerShell that shows a Windows toast notification (no extra modules needed)."""
+    xml = (
+        "<toast><visual><binding template='ToastGeneric'>"
+        f"<text>{_xml_escape(title)}</text><text>{_xml_escape(body)}</text>"
+        "</binding></visual></toast>"
+    )
+    return "; ".join(
+        [
+            "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, "
+            "ContentType=WindowsRuntime] | Out-Null",
+            "[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, "
+            "ContentType=WindowsRuntime] | Out-Null",
+            "$x = New-Object Windows.Data.Xml.Dom.XmlDocument",
+            f"$x.LoadXml({_ps_quote(xml)})",
+            "$t = [Windows.UI.Notifications.ToastNotification]::new($x)",
+            "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("
+            f"{_ps_quote(POWERSHELL_APP_ID)}).Show($t)",
+        ]
+    )
+
+
+def notify(title: str, body: str) -> None:  # pragma: no cover - Windows UI
+    """Show a desktop notification; failures are ignored (notifications are optional)."""
+    if sys.platform != "win32":
+        return
+    subprocess.run(
+        ["powershell", "-NoProfile", "-Command", toast_script(title, body)],
+        check=False,
+        capture_output=True,
+        creationflags=NO_WINDOW,
+    )

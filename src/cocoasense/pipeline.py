@@ -49,6 +49,7 @@ from cocoasense.evaluation.reports import leaderboard, write_table
 from cocoasense.evaluation.walk_forward import Window, forecast_window, log_final_run
 from cocoasense.features.build import build_features, build_targets
 from cocoasense.ingestion.download import DownloadError, download
+from cocoasense.ingestion.fx_live import FxUnavailableError, update_fx
 from cocoasense.ingestion.manifest import ManifestEntry, sha256_of
 from cocoasense.ingestion.sources import Downloader, check_source, ingest_all
 from cocoasense.models.base import Forecaster
@@ -943,9 +944,11 @@ def stage_update(cfg: ProjectConfig, refresh: bool = True) -> dict[str, Any]:
     monthly = stage_validate(cfg)
     stage_learn(cfg)
     stage_insights(cfg)
+    fx = stage_fx(cfg) if refresh else {"status": "skipped"}
     record = {
         "timestamp": datetime.now(UTC).replace(microsecond=0).isoformat(),
         "refreshed": refresh,
+        "fx": fx,
         "data_through_before": None if before is None else f"{before:%Y-%m}",
         "data_through": f"{monthly.index.max():%Y-%m}",
     }
@@ -954,7 +957,9 @@ def stage_update(cfg: ProjectConfig, refresh: bool = True) -> dict[str, Any]:
     return record
 
 
-def stage_auto_update(cfg: ProjectConfig, downloader: Downloader = download) -> dict[str, Any]:
+def stage_auto_update(
+    cfg: ProjectConfig, downloader: Downloader = download, fx_getter: Any = None
+) -> dict[str, Any]:
     """Unattended update: retrain and re-forecast only when a source has new data.
 
     Run by the scheduled task. Offline or blocked sources are skipped (the next run retries);
@@ -984,10 +989,12 @@ def stage_auto_update(cfg: ProjectConfig, downloader: Downloader = download) -> 
             status = "project not built yet: run `cocoasense all`"
             logger.error("%s", exc)
     interim = p.interim / "monthly.parquet"
+    fx = stage_fx(cfg, fx_getter) if interim.exists() else {"status": "no data"}
     record = {
         "timestamp": datetime.now(UTC).replace(microsecond=0).isoformat(),
         "mode": "auto",
         "status": status,
+        "fx": fx,
         "changed": changed,
         "not_checked": failed,
         "data_through": f"{load_monthly(cfg).index.max():%Y-%m}" if interim.exists() else None,
@@ -996,3 +1003,23 @@ def stage_auto_update(cfg: ProjectConfig, downloader: Downloader = download) -> 
     with (p.artifacts / "update_log.jsonl").open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record) + "\n")
     return record
+
+
+# ------------------------------------------------------------- live cedi rate
+
+FX_DAILY = "usd_ghs_daily.csv"
+
+
+def stage_fx(cfg: ProjectConfig, getter: Any = None) -> dict[str, Any]:
+    """Fetch the latest US$ to cedi rate and backfill months after the IMF series (D21).
+
+    Display only: no model reads these rates. Offline runs return ``status: offline``.
+    """
+    path = cfg.paths.artifacts / "fx" / FX_DAILY
+    imf = load_monthly(cfg)["ghs_per_usd"]
+    try:
+        rec = update_fx(path, imf, getter=getter) if getter else update_fx(path, imf)
+        return {"status": "ok", **rec}
+    except FxUnavailableError as exc:
+        logger.warning("cedi rate not updated (offline?): %s", str(exc)[:200])
+        return {"status": "offline"}

@@ -1,0 +1,6 @@
+[theme]
+# Cocoa palette: ochre accent instead of the default alarm red
+primaryColor = "#a8650f"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f5f1ea"
+textColor = "#231c17"
