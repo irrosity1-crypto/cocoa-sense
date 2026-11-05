@@ -11,6 +11,7 @@ from cocoasense.evaluation.improve import (
     ensemble,
     guard_dates,
     scale_intervals,
+    scale_intervals_expanding,
     volatility_reference,
 )
 
@@ -91,3 +92,21 @@ def test_guard_dates_and_apply_guard() -> None:
     out = apply_guard(res, pd.DatetimeIndex([d1]))
     assert out.loc[0, "w"] == 0.5 and out.loc[0, "revenue_per_t"] == 5.0  # guarded month
     assert out.loc[2, "w"] == 0.2  # unguarded month unchanged
+
+
+def test_expanding_scaling_touches_only_chosen_models_and_uses_the_past() -> None:
+    price = _price()
+    rows = pd.concat(
+        [_preds().assign(decision_date=d) for d in price.index[20:]], ignore_index=True
+    )
+    out = scale_intervals_expanding(rows, price, 12, ["b"])
+    others = out["model"] != "b"
+    assert (out.loc[others, "range_factor"] == 1.0).all()
+    pd.testing.assert_series_equal(out.loc[others, "upper"], rows.loc[others, "upper"])
+    assert out.loc[~others, "range_factor"].max() > 1.5  # widened in the volatile regime
+    t = price.index[45]
+    wrecked = price.copy()
+    wrecked[wrecked.index > t] *= 10
+    again = scale_intervals_expanding(rows, wrecked, 12, ["b"])
+    early = rows["decision_date"] <= t
+    pd.testing.assert_series_equal(out.loc[early, "upper"], again.loc[early, "upper"])
