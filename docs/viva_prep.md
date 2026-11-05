@@ -37,8 +37,14 @@ Converted at the delivery-month rate (D17), the ranking of strategies is the sam
 strategy on a date gets the same rate. Simulated cedi revenue per tonne rose ×7.7 from 2020 to
 2025; about 60 % of that (in log terms) was cocoa prices and 40 % cedi depreciation.
 
+**Why not use real futures prices?**
+No free, openly licensed contract-by-contract history exists for ICE cocoa (D18). But the World
+Bank price is already a futures price: the ICCO average of the nearest three positions in New York
+and London. So the forward price is a near-futures average, not a spot price. What it misses is
+the exact contract for each delivery month, which matters most when the curve is steep, as in 2024.
+
 **Is this Ghana's real gain or loss?**
-No. It is a simulation on public monthly prices with a spot-proxy forward price. Contract terms,
+No. It is a simulation on public monthly prices with an approximate forward price. Contract terms,
 basis, financing arrangements and delivery obligations are not public (`docs/limitations.md`).
 
 **How did you choose `a` and the training start?**
@@ -54,7 +60,7 @@ Twice the history (1960 vs 1992), same underlying ICCO price; they agree to with
 average over 417 common months (`artifacts/data_quality.md`).
 
 **What would you do next?**
-Contract-level futures data to replace the spot proxy; a volatility-regime guard that falls back
+Contract-level futures data (licensed) for the exact delivery contract; a volatility-regime guard that falls back
 to a fixed split; supply-side features (production, weather) obtained legally; a comparison with
 periodically refitted models, reported separately from the frozen result.
 

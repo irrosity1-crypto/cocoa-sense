@@ -14,10 +14,13 @@ share *w* forward at price *F_t* and the remainder at the delivery-month price *
 
 ## Assumptions
 
-1. **Forward price (spot proxy).** With free data only, *F_t* is the monthly average spot price of
-   month *t*. Real forward/futures prices differ from spot by a basis (carry, convenience yield),
-   which is ignored. A `CsvFuturesProvider` accepts user-supplied settlement prices
-   (`date, contract_month, settle`) to replace this; none were used for the reported results.
+1. **Forward price (`spot_proxy` mode).** *F_t* is the decision month's World Bank/ICCO cocoa
+   price. Despite the mode's name, this is not a spot price: the Pink Sheet defines it as the
+   ICCO daily price, the average of the first three positions (nearest three futures months) on
+   ICE New York and ICE London, averaged over the month. So *F_t* is a near-futures price for
+   delivery roughly one to six months ahead, not the exact contract for month *t + h*. A
+   `CsvFuturesProvider` accepts contract settlements (`date, contract_month, settle`) to use the
+   exact contract instead; no openly licensed source was found, so none were used (decision D18).
 2. **Delivery price.** *P_{t+h}* is the monthly average price of the delivery month (the same
    series as the forecasts). Intra-month timing is ignored.
 3. **Financing cost.** The unsold share is financed until delivery at an annual rate *r* (default

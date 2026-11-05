@@ -143,7 +143,7 @@ def strategy_outcomes(results: pd.DataFrame, path: Path) -> None:
         g = g.sort_values("decision_date")
         axes[0].plot(g["decision_date"], g["revenue_per_t"], label=str(name), lw=1.2)
     axes[0].set_ylabel("Simulated revenue, US$ per tonne")
-    axes[0].set_title("Simulated revenue by strategy (spot-proxy forward price)")
+    axes[0].set_title("Simulated revenue by strategy (forward price: ICCO near-futures average)")
     axes[0].legend(fontsize=8)
     fd = results[results["strategy"] == "forecast_driven"].sort_values("decision_date")
     axes[1].step(fd["decision_date"], fd["w"], where="post", color="#9467bd")

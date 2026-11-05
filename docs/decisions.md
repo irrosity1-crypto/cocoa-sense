@@ -159,3 +159,20 @@ Each entry: date, options considered, choice, reason. Newest last.
   setting changes; (c) would need its own validation → freeze cycle and was not asked for.
 - **Consequence:** all strategies on a date share one rate, so the per-date winner and the win
   rates are the same as in US$; only the weighting across dates changes (weak-cedi years count more).
+
+## D18 · 2026-11-05 · Futures-curve data: not available under open terms; forward price clarified
+- **Context:** the author asked for futures-curve data to replace the forward-price approximation.
+- **Search:** ICE's end-of-day settlement history is sold by subscription; Barchart's per-contract
+  downloads need a login and its terms forbid redistribution; Databento sells ICE US data (from
+  Dec 2018) on paid plans; Investing.com, Yahoo and Stooq offer only a continuous front-month
+  series under restrictive terms; TradingCharts has charts only; ICCO publishes one averaged daily
+  price. Nothing openly licensed gives each contract month for 2019–2026.
+- **Finding:** the World Bank Pink Sheet (`Description` sheet of the raw file) defines the cocoa
+  price as the ICCO daily price, "average of the first three positions on the terminal markets of
+  New York and London, nearest three future trading months". The `spot_proxy` forward price is
+  therefore already a near-futures average, not a spot price; earlier docs called it spot.
+- **Choice:** no new data and no change to any result or frozen setting. Docs, figure titles and
+  the dashboard now describe the forward price correctly. The mode keeps its `spot_proxy` name
+  because it is recorded in frozen artifacts. `CsvFuturesProvider` stays ready for licensed
+  contract data (`forward_price_mode: futures`); such a run would be a separately labelled
+  sensitivity, since the frozen rule was chosen with the current forward price.

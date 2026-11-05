@@ -1,8 +1,9 @@
 """Forward-price providers.
 
-``spot_proxy`` (default, free data only): the forward price for delivery at t+h is approximated
-by the monthly average spot price at the decision month t. This ignores the futures basis
-(contango/backwardation) and is the main simplification of the simulation.
+``spot_proxy`` (default, free data only): the forward price for delivery at t+h is the decision
+month's World Bank/ICCO price. Despite the name, that series is the average of the nearest three
+futures positions on ICE New York and London, so it is a near-futures price rather than the exact
+t+h contract; it averages maturities and exchanges (docs/decisions.md D18).
 
 ``futures``: reads a user-supplied CSV of contract settlements with columns
 ``date, contract_month, settle`` (USD/tonne). No futures data is fetched by this project.
@@ -27,7 +28,7 @@ class FuturesProvider(Protocol):
 
 
 class SpotProxyProvider:
-    """F_t = monthly average spot price of the decision month."""
+    """F_t = decision-month World Bank/ICCO price (nearest-three-futures average)."""
 
     mode = "spot_proxy"
 
@@ -35,7 +36,7 @@ class SpotProxyProvider:
         self.price = price
 
     def forward_price(self, decision_date: pd.Timestamp, delivery: pd.Timestamp) -> float:
-        """Spot price at the decision month (delivery month is ignored)."""
+        """Price at the decision month (delivery month is ignored)."""
         return float(self.price.loc[decision_date])
 
 
