@@ -91,3 +91,26 @@ def apply_guard(results: pd.DataFrame, dates: pd.DatetimeIndex) -> pd.DataFrame:
     for col in ("w", "revenue", "revenue_per_t"):
         out.loc[hit, col] = out.loc[hit, "decision_date"].map(half[col]).to_numpy()
     return out
+
+
+def scale_intervals_expanding(
+    preds: pd.DataFrame, price: pd.Series, window: int, models: list[str]
+) -> pd.DataFrame:
+    """Volatility-aware ranges for continually refitted forecasts (learning track, live).
+
+    Like ``scale_intervals``, but the reference is the median volatility of all months up to each
+    row's own decision month, so no row uses information from after its decision. Only rows of
+    ``models`` are changed; ``range_factor`` records the widening (1 = unchanged).
+    """
+    vol = volatility(price, window)
+    ref = vol.expanding().median()
+    out = preds.copy()
+    sel = out["model"].isin(models)
+    factor = (out["decision_date"].map(vol) / out["decision_date"].map(ref)).clip(lower=1.0)
+    factor = factor.fillna(1.0).where(sel, 1.0)
+    lo_w = np.log(out["y_pred"] / out["lower"]) * factor
+    hi_w = np.log(out["upper"] / out["y_pred"]) * factor
+    out["lower"] = out["y_pred"] * np.exp(-lo_w)
+    out["upper"] = out["y_pred"] * np.exp(hi_w)
+    out["range_factor"] = factor
+    return out

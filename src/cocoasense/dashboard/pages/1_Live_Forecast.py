@@ -200,6 +200,13 @@ with g2:
     scored_all = data.scored_rows()
     reliable = scored_all is None or brier(scored_all[scored_all["track"] == "learning"]) < 0.25
     st.markdown(explain(row, pick, reliable).replace("$", r"\$"))
+    factor = row.get("range_factor", 1.0)
+    if pd.notna(factor) and factor > 1.0:
+        st.caption(
+            f"This model's 80 % range has been widened ×{factor:.1f} because the market is more "
+            "volatile than usual. Tested on 2020–2026, this brought the share of actual prices "
+            "inside XGBoost's range from 72 % to 84 % (decision D23)."
+        )
     if pd.notna(row["p_up"]):
         up = row["p_up"] * 100
         bar = go.Figure(

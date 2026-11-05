@@ -28,7 +28,13 @@ from cocoasense.evaluation.experiments import (
     score_validation,
     validation_window,
 )
-from cocoasense.evaluation.improve import apply_guard, ensemble, guard_dates, scale_intervals
+from cocoasense.evaluation.improve import (
+    apply_guard,
+    ensemble,
+    guard_dates,
+    scale_intervals,
+    scale_intervals_expanding,
+)
 from cocoasense.evaluation.insights import (
     brier,
     confidence_check,
@@ -850,6 +856,19 @@ def _frozen_rows(cfg: ProjectConfig) -> tuple[pd.DataFrame, pd.DataFrame]:
     return test[ROW_COLUMNS], seed.assign(track="frozen")[ROW_COLUMNS]
 
 
+def _live_ranges(cfg: ProjectConfig, learning: pd.DataFrame, price: pd.Series) -> pd.DataFrame:
+    """Apply the adopted volatility-aware ranges (D23) to the learning track, if frozen."""
+    path = cfg.paths.configs / "frozen_improve.yaml"
+    if not path.exists():
+        return learning
+    decisions = yaml.safe_load(path.read_text(encoding="utf-8"))["decisions"]
+    models = [
+        m for m in decisions["volatility_scaled_intervals"]["adopt_for"] if m in IMPROVE_MODELS
+    ]
+    window = int(_improve_cfg(cfg)["volatility_scaled_intervals"]["window"])
+    return scale_intervals_expanding(learning, price, window, models)
+
+
 def stage_insights(cfg: ProjectConfig) -> pd.DataFrame:
     """Confidence for every forecast, success scorecards, calibration and live forecasts."""
     p = cfg.paths
@@ -863,6 +882,7 @@ def stage_insights(cfg: ProjectConfig) -> pd.DataFrame:
     learn_path = p.forecasts / LEARNING
     if learn_path.exists():
         learning = fill_actuals(pd.read_parquet(learn_path), price)[ROW_COLUMNS]
+        learning = _live_ranges(cfg, learning, price)
         parts.append(ex_ante_confidence(learning, learning, price, ins))
     rows = pd.concat(parts, ignore_index=True)
     rows = rows[rows["target_date"] >= test_start].reset_index(drop=True)
