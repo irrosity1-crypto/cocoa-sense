@@ -86,7 +86,7 @@ src/cocoasense/
   features/   leakage-safe features and targets
   models/     naive, ARIMA, Random Forest, XGBoost, LSTM behind one Forecaster interface
   evaluation/ frozen-origin walk-forward, metrics, experiments, reports, figures
-  simulation/ strategies, engine, futures provider, metrics
+  simulation/ strategies, engine, futures provider, metrics, cedi conversion
   dashboard/  Streamlit multipage app
 tests/        unit, integration, leakage (5 mandatory tests), dashboard smoke tests
 docs/         methodology, decisions, data sources, simulation assumptions, limitations, results
@@ -126,6 +126,10 @@ in `docs/results.md`):
   the 2023–25 surge (MAE 7–10 % below naive), because it learned momentum where the tree models
   learned mean reversion. It was clearly worse in calm and post-peak months.
   `docs/results.md` section 8.
+- **Cedi revenue view** (decision D17): the same simulation in Ghana cedis at the delivery-month
+  rate (deliveries to Jan 2026). Strategy rankings are unchanged; from 2020 to 2025, simulated
+  cedi revenue per tonne rose ×7.7, about 60 % from cocoa prices and 40 % from cedi depreciation.
+  `docs/results.md` section 9; the Strategy Simulator has a US$ / GHS switch.
 
 ## Quality gate
 

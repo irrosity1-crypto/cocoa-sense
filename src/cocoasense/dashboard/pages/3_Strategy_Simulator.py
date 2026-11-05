@@ -7,6 +7,7 @@ import plotly.express as px
 import streamlit as st
 
 from cocoasense.dashboard import data
+from cocoasense.simulation.currency import to_cedis
 from cocoasense.simulation.engine import scenario_delivery, simulate
 from cocoasense.simulation.futures_provider import SpotProxyProvider
 from cocoasense.simulation.metrics import strategy_metrics
@@ -73,7 +74,24 @@ results = simulate(
     delivery_override=override,
 )
 
-m = data.strategy_display(strategy_metrics(results))
+currency = st.radio("Currency", ["US$", "Ghana cedis (GHS)"], horizontal=True, key="currency")
+unit, value, total_col = "US$", "revenue_per_t", "revenue"
+if currency != "US$":
+    n_all = results["decision_date"].nunique()
+    cedi = to_cedis(results, monthly["ghs_per_usd"])
+    if cedi.empty:
+        st.info("No delivery month in this run has an observed exchange rate; showing US$.")
+    else:
+        results, unit, value, total_col = cedi, "GHS", "revenue_ghs_per_t", "revenue_ghs"
+        st.caption(
+            "Each delivery is paid in US$ and converted at the delivery month's average GHS/US$ "
+            f"rate (IMF). The rate series ends {monthly['ghs_per_usd'].dropna().index.max():%b %Y}"
+            f", so {results['decision_date'].nunique()} of {n_all} deliveries are shown; later "
+            "ones are left out, not extrapolated. All strategies on a date share one rate, so "
+            "which strategy wins on each date is the same as in US$."
+        )
+
+m = data.strategy_display(strategy_metrics(results, value))
 st.dataframe(
     m[
         [
@@ -89,9 +107,9 @@ st.dataframe(
     .rename(
         columns={
             "strategy": "Strategy",
-            "mean_revenue_per_t": "Mean US$/t",
-            "std_revenue_per_t": "Std US$/t",
-            "worst10_mean_per_t": "Worst 10 % mean US$/t",
+            "mean_revenue_per_t": f"Mean {unit}/t",
+            "std_revenue_per_t": f"Std {unit}/t",
+            "worst10_mean_per_t": f"Worst 10 % mean {unit}/t",
             "regret_vs_best_fixed": "Regret vs best fixed",
             "win_rate_vs_5050": "Win rate vs 50/50",
             "mean_w": "Mean forward share",
@@ -102,20 +120,20 @@ st.dataframe(
     use_container_width=True,
 )
 results["strategy_name"] = results["strategy"].map(data.strategy_label)
-total = results.groupby("strategy_name")["revenue"].sum() / 1e6
+total = results.groupby("strategy_name")[total_col].sum() / 1e6
 st.caption(
     f"Total simulated revenue over {results['decision_date'].nunique()} decisions "
-    f"(US$ million): " + ", ".join(f"{k} {v:,.1f}" for k, v in total.items())
+    f"({unit} million): " + ", ".join(f"{k} {v:,.1f}" for k, v in total.items())
 )
 
 fig = px.line(
     results,
     x="decision_date",
-    y="revenue_per_t",
+    y=value,
     color="strategy_name",
     labels={
         "decision_date": "Decision month",
-        "revenue_per_t": "Revenue, US$/t",
+        value: f"Revenue, {unit}/t",
         "strategy_name": "Strategy",
     },
     color_discrete_map=data.STRATEGY_COLOURS,

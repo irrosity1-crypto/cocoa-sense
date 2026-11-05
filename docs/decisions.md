@@ -146,3 +146,16 @@ Each entry: date, options considered, choice, reason. Newest last.
   who had already seen the other models' test results, so its test is not fully blind. To limit
   this, both input sets (with and without the price level) are in the grid and the choice is left
   to cross-validation on training data, and the LSTM is not changed after its test run.
+
+## D17 · 2026-11-05 · Cedi revenue view
+- **Context:** the author asked for the cedi revenue view stretch item. COCOBOD sells cocoa in US
+  dollars but its costs and producer prices are set in cedis, so revenue in cedis is the figure
+  that matters locally.
+- **Options:** (a) convert at the decision-month rate; (b) convert at the delivery-month rate;
+  (c) build a cedi-aware selling rule.
+- **Choice:** (b), as a reporting view only. Both the forward and the spot share are paid in US$
+  at delivery, so the delivery month's IMF average GHS/US$ rate applies. Deliveries after the last
+  observed rate (Jan 2026) are dropped, never extrapolated. Nothing is re-simulated and no frozen
+  setting changes; (c) would need its own validation → freeze cycle and was not asked for.
+- **Consequence:** all strategies on a date share one rate, so the per-date winner and the win
+  rates are the same as in US$; only the weighting across dates changes (weak-cedi years count more).

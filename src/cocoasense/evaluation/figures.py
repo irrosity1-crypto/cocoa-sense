@@ -151,3 +151,19 @@ def strategy_outcomes(results: pd.DataFrame, path: Path) -> None:
     axes[1].set_ylabel("Forward share w\n(forecast-driven)")
     axes[1].set_xlabel("Decision month")
     _save(fig, path)
+
+
+def cedi_revenue(cedi: pd.DataFrame, path: Path) -> None:
+    """Simulated revenue in cedis per tonne by delivery month, and the exchange rate used."""
+    fig, axes = plt.subplots(2, 1, figsize=(10, 6.5), sharex=True)
+    for name, g in cedi.groupby("strategy"):
+        g = g.sort_values("target_date")
+        axes[0].plot(g["target_date"], g["revenue_ghs_per_t"], label=str(name), lw=1.2)
+    axes[0].set_ylabel("Simulated revenue, GHS per tonne")
+    axes[0].set_title(r"Simulated revenue in cedis (US\$ revenue × delivery-month GHS/US\$)")
+    axes[0].legend(fontsize=8)
+    fx = cedi.drop_duplicates("target_date").sort_values("target_date")
+    axes[1].plot(fx["target_date"], fx["ghs_per_usd"], color="#1f77b4")
+    axes[1].set_ylabel("Ghana cedis per US$\n(IMF, monthly average)")
+    axes[1].set_xlabel("Delivery month")
+    _save(fig, path)

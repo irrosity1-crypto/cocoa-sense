@@ -14,13 +14,13 @@ def worst_share_mean(values: np.ndarray, share: float = 0.10) -> float:
     return float(np.sort(values)[:k].mean())
 
 
-def strategy_metrics(results: pd.DataFrame) -> pd.DataFrame:
-    """Per-strategy summary of a simulation run (revenue in USD per tonne).
+def strategy_metrics(results: pd.DataFrame, value: str = "revenue_per_t") -> pd.DataFrame:
+    """Per-strategy summary of a simulation run (``value``: revenue per tonne, US$ by default).
 
     * ``regret``: mean shortfall against the best of the fixed strategies at each date.
     * ``win_rate_vs_5050``: share of dates where the strategy earns strictly more than 50/50.
     """
-    wide = results.pivot_table(index="decision_date", columns="strategy", values="revenue_per_t")
+    wide = results.pivot_table(index="decision_date", columns="strategy", values=value)
     fixed = [c for c in FIXED_NAMES if c in wide]
     best_fixed = wide[fixed].max(axis=1)
     rows = []
@@ -45,14 +45,16 @@ def strategy_metrics(results: pd.DataFrame) -> pd.DataFrame:
 
 
 def metrics_by_period(
-    results: pd.DataFrame, periods: dict[str, tuple[pd.Timestamp, pd.Timestamp | None]]
+    results: pd.DataFrame,
+    periods: dict[str, tuple[pd.Timestamp, pd.Timestamp | None]],
+    value: str = "revenue_per_t",
 ) -> pd.DataFrame:
     """Strategy metrics for the full run and each period (by delivery month)."""
-    parts = [strategy_metrics(results).assign(period="full")]
+    parts = [strategy_metrics(results, value).assign(period="full")]
     for name, (start, end) in periods.items():
         mask = results["target_date"] >= start
         if end is not None:
             mask &= results["target_date"] <= end
         if mask.any():
-            parts.append(strategy_metrics(results.loc[mask]).assign(period=name))
+            parts.append(strategy_metrics(results.loc[mask], value).assign(period=name))
     return pd.concat(parts, ignore_index=True)
