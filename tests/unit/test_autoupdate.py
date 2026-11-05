@@ -9,10 +9,12 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+import requests
 
 from cocoasense import pipeline
+from cocoasense.autoupdate import new_data_message
 from cocoasense.config import ProjectConfig
-from cocoasense.desktop import TASK_NAME, schedule_script
+from cocoasense.desktop import TASK_NAME, schedule_script, toast_script
 from cocoasense.ingestion.download import DownloadError
 from cocoasense.ingestion.manifest import read_manifest
 from cocoasense.ingestion.sources import check_source
@@ -66,7 +68,7 @@ def test_auto_update_offline_and_unbuilt(raw_fixture_files: ProjectConfig) -> No
     cfg = raw_fixture_files
     pipeline.stage_ingest(cfg)
     pipeline.stage_validate(cfg)
-    rec = pipeline.stage_auto_update(cfg, downloader=_offline)
+    rec = pipeline.stage_auto_update(cfg, downloader=_offline, fx_getter=_fx_down)
     assert rec["status"].startswith("project not built")  # no frozen models in a bare fixture
     assert rec["not_checked"] == list(cfg.data.sources)
     log = (cfg.paths.artifacts / "update_log.jsonl").read_text(encoding="utf-8").splitlines()
@@ -86,7 +88,7 @@ def test_auto_update_retrains_only_on_new_data(
     monkeypatch.setattr(pipeline, "stage_learn", lambda c: called.append("learn"))
     monkeypatch.setattr(pipeline, "stage_insights", lambda c: called.append("insights"))
 
-    rec = pipeline.stage_auto_update(cfg, downloader=_offline)
+    rec = pipeline.stage_auto_update(cfg, downloader=_offline, fx_getter=_fx_down)
     assert rec["status"] == "offline" and called == []
 
     def same_file(url: str, dest: Path, manual: Path) -> None:
@@ -94,7 +96,7 @@ def test_auto_update_retrains_only_on_new_data(
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(cfg.paths.raw / match.file, dest)
 
-    rec = pipeline.stage_auto_update(cfg, downloader=same_file)
+    rec = pipeline.stage_auto_update(cfg, downloader=same_file, fx_getter=_fx_down)
     assert rec["status"] == "no new data" and rec["changed"] == [] and called == []
 
     longer = synthetic_history(end="2020-03")["price_usd_t"].loc["1992":]
@@ -105,7 +107,7 @@ def test_auto_update_retrains_only_on_new_data(
         else:
             same_file(url, dest, manual)
 
-    rec = pipeline.stage_auto_update(cfg, downloader=new_fred)
+    rec = pipeline.stage_auto_update(cfg, downloader=new_fred, fx_getter=_fx_down)
     assert rec["changed"] == [FRED]
     assert rec["status"] == "retrained on new data" and called == ["learn", "insights"]
 
@@ -116,3 +118,38 @@ def test_schedule_script() -> None:
     assert "-m cocoasense.autoupdate" in script
     assert "-RunOnlyIfNetworkAvailable" in script and "-StartWhenAvailable" in script
     assert "-AtLogOn" in script and "-Daily -At '08:30'" in script
+
+
+def _fx_down(url: str) -> dict[str, object]:
+    raise requests.ConnectionError("offline")
+
+
+def _fx_up(url: str) -> dict[str, object]:
+    return {"date": "2019-12-20", "usd": {"ghs": 5.6}}
+
+
+def test_stage_fx_offline_then_online(raw_fixture_files: ProjectConfig) -> None:
+    cfg = raw_fixture_files
+    pipeline.stage_ingest(cfg)
+    pipeline.stage_validate(cfg)
+    assert pipeline.stage_fx(cfg, _fx_down) == {"status": "offline"}
+    rec = pipeline.stage_fx(cfg, _fx_up)
+    assert rec["status"] == "ok" and rec["latest_rate"] == 5.6
+    assert (cfg.paths.artifacts / "fx" / pipeline.FX_DAILY).exists()
+
+
+def test_new_data_message(raw_fixture_files: ProjectConfig) -> None:
+    cfg = raw_fixture_files
+    pipeline.stage_ingest(cfg)
+    pipeline.stage_validate(cfg)
+    title, text = new_data_message(cfg, {"fx": {"status": "ok", "latest_rate": 10.0}})
+    assert "new cocoa price" in title and "December 2019" in text and "GH₵" in text
+    _, plain = new_data_message(cfg, {"fx": {"status": "offline"}})
+    assert "GH₵" not in plain and plain.endswith("Forecasts have been updated.")
+
+
+def test_toast_script_escapes_text() -> None:
+    script = toast_script("Price <up> & more", "it's 5,000")
+    assert "&lt;up&gt; &amp; more" in script
+    assert "it''s 5,000" in script  # single quote doubled for PowerShell
+    assert "CreateToastNotifier" in script

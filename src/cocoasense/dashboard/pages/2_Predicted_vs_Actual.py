@@ -17,7 +17,9 @@ if scored is None or scored.empty:
     st.stop()
 
 data.explainer(
-    "Each point is one forecast, placed at the month it was predicting. The **margin of error** "
+    "Prices are in US$ per tonne; the table also shows cedis, converted at each month's average "
+    "exchange rate. Each point is one forecast, placed at the month it was predicting. "
+    "The **margin of error** "
     "is forecast minus actual: positive means the model guessed too high, negative too low. "
     "Green markers were within ±5 % of the actual price, amber within ±10 %, red further off."
 )
@@ -183,9 +185,21 @@ table = sel.sort_values("target_date", ascending=False)[
         "confidence": "Confidence at the time",
     }
 )
+month_rate = sel.sort_values("target_date", ascending=False)["target_date"].map(data.fx_monthly())
+table.insert(4, "Forecast GH₵", (table["Forecast"] * month_rate.to_numpy()).round(0))
+table.insert(8, "Actual GH₵", (table["Actual"] * month_rate.to_numpy()).round(0))
 for c in ("Made in", "For month"):
     table[c] = table[c].dt.strftime("%b %Y")
-st.dataframe(table.style.format(precision=1), hide_index=True, use_container_width=True)
+money_cols = {
+    c: "{:,.0f}"
+    for c in table.columns
+    if c not in ("Made in", "For month", "Error %", "Result", "Confidence at the time")
+}
+st.dataframe(
+    table.style.format({**money_cols, "Error %": "{:.1f}"}),
+    hide_index=True,
+    use_container_width=True,
+)
 st.download_button(
     "Download this table (CSV)",
     table.to_csv(index=False).encode("utf-8"),

@@ -225,3 +225,25 @@ Each entry: date, options considered, choice, reason. Newest last.
   daily prices are viewable only, under copyright; Yahoo, Investing.com and Barchart forbid
   automated download or redistribution). With a lawfully obtained daily CSV the same update
   machinery could be extended.
+
+## D21 · 2026-11-05 · Live US$ to cedi rate and cedi values across the app
+- **Context:** the author asked for cedi conversions wherever US$ prices appear, using a rate that
+  updates by itself when the computer is online. The IMF monthly series ends January 2026.
+- **Source:** fawazahmed0/exchange-api ("currency-api"): free, no API key, no rate limits, data
+  released under CC0 (public domain), daily rates with dated history. Two mirrors are tried in
+  turn (jsDelivr, Cloudflare Pages). ExchangeRate-API's open endpoint was also checked and gives
+  a consistent rate (11.69 vs 11.63-11.65 GHS per US$ on 5 November 2026).
+- **Choice:** `cocoasense fx`, every manual update and every automatic check fetch the latest rate
+  and store it in `artifacts/fx/usd_ghs_daily.csv`; months after the last IMF observation are
+  backfilled with rates sampled on the 1st, 8th, 15th and 22nd. One rate per month is formed from
+  the IMF monthly average where it exists, otherwise the mean of the stored daily rates (source
+  recorded). Offline runs change nothing and retry later.
+- **Scope:** display and conversion only. No forecasting model reads these rates, so the frozen
+  results, the exchange-rate experiment (IMF data only) and the learning track are unchanged. The
+  written cedi results (`docs/results.md`, section 9) keep the IMF-only rates; the dashboard's
+  Strategy Simulator uses the combined series and says so. Forecast-month cedi values use today's
+  rate, because future exchange rates are not forecast.
+- **Also in this change (review findings):** pages reordered so Live Forecast, Predicted vs Actual
+  and Scorecard come first; a cocoa colour theme replaces the default red accent; "Direction
+  correct" shown as a percentage; a revenue calculator in US$ and GHS; a Windows notification when
+  the automatic check finds a new monthly price.

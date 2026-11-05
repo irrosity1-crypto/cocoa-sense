@@ -81,6 +81,9 @@ if reveal:
     cols += ["y_true"]
 table = at_t[cols].sort_values(["horizon", "model"]).copy()
 table["model"] = table["model"].map(data.label)
+rate_t = data.fx_monthly().get(t)
+if rate_t is not None and not pd.isna(rate_t):
+    table.insert(4, "Forecast GH₵/t", (table["y_pred"] * rate_t).round(0))
 table["target_date"] = pd.to_datetime(table["target_date"]).dt.strftime("%b %Y")
 if reveal:
     table["Error %"] = (table["y_pred"] - table["y_true"]) / table["y_true"] * 100
@@ -97,6 +100,7 @@ shown = table.rename(columns=rename)
 money = [
     c for c in ("Forecast US$/t", "Lower (80 %)", "Upper (80 %)", "Actual US$/t") if c in shown
 ]
+money += ["Forecast GH₵/t"] if "Forecast GH₵/t" in shown else []
 fmt = {c: "{:,.0f}" for c in money}
 if "Error %" in shown:
     fmt["Error %"] = "{:+.1f}"
@@ -130,6 +134,7 @@ if rows is not None:
             "than a coin flip (Scorecard page), so the direction should not be relied on."
         )
 st.caption(
+    "Cedi values use the exchange rate of the decision month. "
     "Source: artifacts/forecasts/test_predictions.parquet and lstm_test_predictions.parquet "
     "(models frozen at Dec 2019)."
 )

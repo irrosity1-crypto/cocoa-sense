@@ -21,12 +21,19 @@ if monthly is None or rows is None or not (rows["track"] == "learning").any():
     st.stop()
 
 price = monthly["price_usd_t"].dropna()
+fx = data.fx_latest()
+rate = fx[1] if fx else None
 last = price.index.max()
 log = data.update_log()
 
 # ------------------------------------------------------------- freshness + update
 c1, c2, c3 = st.columns([1, 1, 1.3])
-c1.metric("Latest market price", f"US${price.iloc[-1]:,.0f}/t", f"{last:%B %Y} average")
+c1.metric(
+    "Latest market price",
+    f"US${price.iloc[-1]:,.0f}/t",
+    f"{last:%B %Y} average · ≈ {data.cedis(price.iloc[-1], rate)}/t" if rate else f"{last:%B %Y}",
+    delta_color="off",
+)
 age = (pd.Timestamp.today().to_period("M") - last.to_period("M")).n
 c2.metric(
     "Data freshness",
@@ -93,10 +100,14 @@ cols[0].metric(
     f"US${consensus:,.0f}/t",
     f"{(consensus / price.iloc[-1] - 1) * 100:+.1f} % vs {last:%b %Y}",
 )
+if rate:
+    cols[0].caption(f"≈ {data.cedis(consensus, rate)}/t at today's rate")
 for col, (_, r) in zip(cols[1:], lh.iterrows(), strict=True):
     col.metric(
         r["label"], f"US${r['y_pred']:,.0f}/t", f"{(r['y_pred'] / r['last_obs'] - 1) * 100:+.1f} %"
     )
+    if rate:
+        col.caption(f"≈ {data.cedis(r['y_pred'], rate)}/t")
     conf = r["confidence"]
     col.markdown(
         f"<span style='background:{data.CONFIDENCE_COLOURS[conf]};color:white;padding:2px 8px;"
@@ -211,6 +222,37 @@ with g2:
             )
         st.plotly_chart(bar, use_container_width=True)
 
+# ---------------------------------------------------------- revenue calculator
+st.subheader("What would a sale be worth?")
+data.explainer(
+    "Enter a quantity to see what it would earn at the forecast price, in US dollars and in "
+    "cedis. The cedi figure uses today's exchange rate, because future exchange rates are not "
+    "forecast. The range comes from the model's 80 % range."
+)
+k1, k2 = st.columns([1, 2])
+tonnes = k1.number_input("Tonnes", min_value=1.0, value=1000.0, step=100.0, key="calc_tonnes")
+base_model = k1.selectbox("Price from", ["Model consensus", *labels], key="calc_model")
+if base_model == "Model consensus":
+    others = lh[lh["model"] != "naive"]
+    mid, lo, hi = consensus, others["lower"].mean(), others["upper"].mean()
+else:
+    sel_row = lh[lh["label"] == base_model].iloc[0]
+    mid, lo, hi = sel_row["y_pred"], sel_row["lower"], sel_row["upper"]
+with k2:
+    r1, r2, r3 = st.columns(3)
+    r1.metric("Expected (US$)", f"{tonnes * mid:,.0f}")
+    r2.metric("80 % range (US$ m)", f"{tonnes * lo / 1e6:,.2f} – {tonnes * hi / 1e6:,.2f}")
+    r3.metric("At today's price (US$)", f"{tonnes * price.iloc[-1]:,.0f}")
+    if rate:
+        g1, g2, g3 = st.columns(3)
+        g1.metric("Expected (GH₵)", f"{tonnes * mid * rate:,.0f}")
+        g2.metric(
+            "80 % range (GH₵ m)",
+            f"{tonnes * lo * rate / 1e6:,.1f} – {tonnes * hi * rate / 1e6:,.1f}",
+        )
+        g3.metric("At today's price (GH₵)", f"{tonnes * price.iloc[-1] * rate:,.0f}")
+    st.caption(f"For {target:%B %Y}. Simulated values on public prices, not trading advice.")
+
 # ------------------------------------------------------- recent forecast record
 st.subheader("Recent forecasts vs what actually happened")
 data.explainer(
@@ -249,8 +291,17 @@ if scored is not None:
             "confidence": "Confidence at the time",
         }
     )
+    month_rate = rec.sort_values(["target_date", "Model"], ascending=[False, True])[
+        "target_date"
+    ].map(data.fx_monthly())
+    show.insert(4, "Actual GH₵/t", (show["Actual US$/t"] * month_rate.to_numpy()).round(0))
     show["Month"] = show["Month"].dt.strftime("%b %Y")
-    st.dataframe(show.style.format(precision=1), hide_index=True, use_container_width=True)
+    money_cols = {c: "{:,.0f}" for c in show.columns if "US$" in c or "GH₵" in c}
+    st.dataframe(
+        show.style.format({**money_cols, "Error %": "{:.1f}"}),
+        hide_index=True,
+        use_container_width=True,
+    )
     st.download_button(
         "Download the full forecast record (CSV)",
         scored[scored["track"] == "learning"].to_csv(index=False).encode("utf-8"),

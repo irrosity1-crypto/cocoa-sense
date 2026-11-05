@@ -131,6 +131,18 @@ def update(
     typer.echo(f"data through {rec['data_through']} (was {rec['data_through_before']})")
 
 
+@app.command()
+def fx(root: Path | None = RootOpt) -> None:
+    """Fetch the latest US$ to cedi rate now (also done by every update)."""
+    rec = pipeline.stage_fx(_cfg(root))
+    if rec["status"] == "ok":
+        typer.echo(
+            f"1 US$ = {rec['latest_rate']:.4f} GHS on {rec['latest_date']} ({rec['source']})"
+        )
+    else:
+        typer.echo("offline: cedi rate not updated; the next update will retry")
+
+
 @app.command("schedule-updates")
 def schedule_updates(
     at: str = typer.Option("09:00", help="Daily check time (24-hour HH:MM)."),

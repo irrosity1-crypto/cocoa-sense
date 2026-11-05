@@ -53,6 +53,15 @@ On Linux/macOS `make reproduce`, `make lint` and `make test` do the same.
 All screenshots, including the Forecast Explorer before reveal and the Data and Method page, are in
 `docs/figures/`.
 
+### Cedi values and the live exchange rate
+
+Prices are shown in US dollars with their Ghana cedi equivalent (GH₵) across the dashboard, and
+the current rate sits in the sidebar of every page. The rate comes from a free, keyless,
+public-domain exchange-rate service and is refreshed by `uv run cocoasense fx`, by every update
+and by the automatic daily check. Past months use the IMF monthly average (to January 2026) and
+then the average of the service's daily rates. The rate is only used for display: no model uses it
+(decision D21).
+
 ### Automatic updates (Windows)
 
 ```bash
@@ -64,8 +73,9 @@ whenever the computer is online. When a new monthly price is published it downlo
 the earlier forecasts against it, retrains the learning-track models and refreshes the live
 forecasts and confidence, with no action needed. If nothing changed, or you are offline, it does
 nothing and tries again later. The result of each check is shown on the Live Forecast page and
-logged in `%LOCALAPPDATA%\CocoaSense\auto_update.log`. Prices are monthly averages: the free
-sources publish no daily prices (decision D20).
+logged in `%LOCALAPPDATA%\CocoaSense\auto_update.log`. When a new monthly price arrives, a
+Windows notification says so. Prices are monthly averages: the free sources publish no daily
+prices (decision D20).
 
 ### Desktop app (Windows)
 
@@ -106,6 +116,7 @@ data/raw (immutable + manifest.json)
 | `cocoasense learn` | learning track: refit every month on all prices known so far, forecast ahead (D19) |
 | `cocoasense insights` | success scorecards, ex-ante confidence per forecast, calibration, live forecasts |
 | `cocoasense update [--auto]` | fetch the latest prices, score earlier forecasts, refit, forecast ahead (`--auto`: only if a source has new data) |
+| `cocoasense fx` | fetch the latest US$ to cedi rate now (display only) |
 | `cocoasense schedule-updates [--remove]` | run `update --auto` daily and at log-on, when online (Windows) |
 | `cocoasense app` / `install-shortcut` | the dashboard as a desktop app window / a desktop icon that opens it (Windows) |
 | `cocoasense lstm train` / `lstm freeze` / `lstm evaluate --final` | the LSTM stretch model's own validation → freeze → final cycle (`configs/frozen_lstm.yaml`) |
