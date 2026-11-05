@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from cocoasense.dashboard import data
+from cocoasense.dashboard import data, ui
 from cocoasense.evaluation.insights import brier, confidence_check, explain
 
 data.page_header("Live Forecast")
@@ -27,20 +27,19 @@ last = price.index.max()
 log = data.update_log()
 
 # ------------------------------------------------------------- freshness + update
-c1, c2, c3 = st.columns([1, 1, 1.3])
-c1.metric(
-    "Latest market price",
-    f"US${price.iloc[-1]:,.0f}/t",
-    f"{last:%B %Y} average · ≈ {data.cedis(price.iloc[-1], rate)}/t" if rate else f"{last:%B %Y}",
-    delta_color="off",
-)
-age = (pd.Timestamp.today().to_period("M") - last.to_period("M")).n
-c2.metric(
-    "Data freshness",
-    f"{age} month{'s' if age != 1 else ''} old",
-    "World Bank publishes early each month",
-    delta_color="off",
-)
+c1, c3 = st.columns([2, 1.2])
+with c1:
+    ui.hero(
+        f"US${price.iloc[-1]:,.0f}",
+        "per tonne",
+        (price.iloc[-1] / price.iloc[-2] - 1) * 100,
+        f"{last:%B %Y}" + (f" · ≈ GH₵{price.iloc[-1] * rate:,.0f}/t" if rate else ""),
+    )
+    age = (pd.Timestamp.today().to_period("M") - last.to_period("M")).n
+    st.caption(
+        f"Data is {age} month{'s' if age != 1 else ''} old; the World Bank publishes "
+        "early each month."
+    )
 with c3:
     st.write("**Get the latest market prices**")
     if st.button("Update prices and forecasts", type="primary", use_container_width=True):
@@ -94,27 +93,28 @@ target = lh["target_date"].iloc[0]
 consensus = lh.loc[lh["model"] != "naive", "y_pred"].mean()
 
 st.subheader(f"Forecast for {target:%B %Y}")
-cols = st.columns(len(lh) + 1)
-cols[0].metric(
-    "Model consensus",
-    f"US${consensus:,.0f}/t",
-    f"{(consensus / price.iloc[-1] - 1) * 100:+.1f} % vs {last:%b %Y}",
-)
-if rate:
-    cols[0].caption(f"≈ {data.cedis(consensus, rate)}/t at today's rate")
-for col, (_, r) in zip(cols[1:], lh.iterrows(), strict=True):
-    col.metric(
-        r["label"], f"US${r['y_pred']:,.0f}/t", f"{(r['y_pred'] / r['last_obs'] - 1) * 100:+.1f} %"
+spot = float(price.iloc[-1])
+fc_cards = [
+    ui.Card(
+        "Model consensus",
+        f"US${consensus:,.0f}",
+        (consensus / spot - 1) * 100,
+        sub=(f"≈ GH₵{consensus * rate:,.0f}/t at today's rate" if rate else "average of 3 models"),
+        delta_suffix=f" vs {last:%b}",
     )
-    if rate:
-        col.caption(f"≈ {data.cedis(r['y_pred'], rate)}/t")
-    conf = r["confidence"]
-    col.markdown(
-        f"<span style='background:{data.CONFIDENCE_COLOURS[conf]};color:white;padding:2px 8px;"
-        f"border-radius:8px;font-size:0.8em'>{conf} confidence</span>",
-        unsafe_allow_html=True,
+]
+for _, r in lh.iterrows():
+    conf = str(r["confidence"])
+    fc_cards.append(
+        ui.Card(
+            str(r["label"]),
+            f"US${r['y_pred']:,.0f}",
+            (r["y_pred"] / r["last_obs"] - 1) * 100,
+            sub=f"≈ GH₵{r['y_pred'] * rate:,.0f}/t" if rate else "",
+            pill=(f"{conf} confidence", data.CONFIDENCE_COLOURS[conf]),
+        )
     )
-
+ui.cards(fc_cards)
 track_scored = data.scored_rows()
 if track_scored is not None:
     past = track_scored[
@@ -135,9 +135,16 @@ if track_scored is not None:
 # ------------------------------------------------------------------- fan chart
 hist = price.loc[last - pd.DateOffset(months=18) :]
 fig = go.Figure()
-fig.add_trace(go.Scatter(x=hist.index, y=hist.values, name="Actual price", line={"color": "black"}))
+fig.add_trace(
+    go.Scatter(
+        x=hist.index,
+        y=hist.values,
+        name="Actual price",
+        line={"color": ui.ACTUAL, "width": 2},
+    )
+)
 for _, r in lh.iterrows():
-    colour = data.MODEL_COLOURS.get(r["label"], "#555")
+    colour = data.MODEL_COLOURS.get(r["label"], "#9aa4b2")
     fig.add_trace(
         go.Scatter(
             x=[last, r["target_date"]],
@@ -161,7 +168,7 @@ fig.update_layout(
     legend={"orientation": "h", "y": -0.2},
     title="Recent prices and the forecasts, with 80 % ranges",
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, theme=None)
 
 # ------------------------------------------------------- explanation per model
 st.subheader("What each model says, in plain words")
@@ -180,15 +187,15 @@ with g1:
                 "axis": {"range": [0, 100]},
                 "bar": {"color": data.CONFIDENCE_COLOURS[row["confidence"]]},
                 "steps": [
-                    {"range": [0, 50], "color": "#fde0dc"},
-                    {"range": [50, 70], "color": "#fff1d6"},
-                    {"range": [70, 100], "color": "#e3f4e1"},
+                    {"range": [0, 50], "color": "rgba(234,57,67,0.18)"},
+                    {"range": [50, 70], "color": "rgba(251,191,36,0.16)"},
+                    {"range": [70, 100], "color": "rgba(22,199,132,0.16)"},
                 ],
             },
         )
     )
     gauge.update_layout(height=260, margin={"t": 60, "b": 10, "l": 20, "r": 20})
-    st.plotly_chart(gauge, use_container_width=True)
+    st.plotly_chart(gauge, use_container_width=True, theme=None)
 with g2:
     scored_all = data.scored_rows()
     reliable = scored_all is None or brier(scored_all[scored_all["track"] == "learning"]) < 0.25
@@ -200,7 +207,7 @@ with g2:
                 x=[up, 100 - up],
                 y=["", ""],
                 orientation="h",
-                marker_color=["#2ca02c", "#d62728"],
+                marker_color=["#16c784", "#ea3943"],
                 text=[f"Higher {up:.0f} %", f"Lower {100 - up:.0f} %"],
                 textposition="inside",
             )
@@ -220,7 +227,7 @@ with g2:
                 "(see the Scorecard page). Treat the direction as unknown.",
                 icon="⚠️",
             )
-        st.plotly_chart(bar, use_container_width=True)
+        st.plotly_chart(bar, use_container_width=True, theme=None)
 
 # ---------------------------------------------------------- revenue calculator
 st.subheader("What would a sale be worth?")
@@ -239,18 +246,36 @@ else:
     sel_row = lh[lh["label"] == base_model].iloc[0]
     mid, lo, hi = sel_row["y_pred"], sel_row["lower"], sel_row["upper"]
 with k2:
-    r1, r2, r3 = st.columns(3)
-    r1.metric("Expected (US$)", f"{tonnes * mid:,.0f}")
-    r2.metric("80 % range (US$ m)", f"{tonnes * lo / 1e6:,.2f} – {tonnes * hi / 1e6:,.2f}")
-    r3.metric("At today's price (US$)", f"{tonnes * price.iloc[-1]:,.0f}")
+
+    def money(v: float, cur: str) -> str:
+        return f"{cur}{v / 1e6:,.2f}m" if v >= 1e6 else f"{cur}{v:,.0f}"
+
+    spot_value = tonnes * price.iloc[-1]
+    calc = [
+        ui.Card(
+            "Expected value",
+            money(tonnes * mid, "US$"),
+            (mid / price.iloc[-1] - 1) * 100,
+            sub=f"80 % range {money(tonnes * lo, 'US$')} – {money(tonnes * hi, 'US$')}",
+            delta_suffix=" vs today",
+        ),
+        ui.Card("At today's price", money(spot_value, "US$"), sub=f"{last:%B %Y} average"),
+    ]
     if rate:
-        g1, g2, g3 = st.columns(3)
-        g1.metric("Expected (GH₵)", f"{tonnes * mid * rate:,.0f}")
-        g2.metric(
-            "80 % range (GH₵ m)",
-            f"{tonnes * lo * rate / 1e6:,.1f} – {tonnes * hi * rate / 1e6:,.1f}",
-        )
-        g3.metric("At today's price (GH₵)", f"{tonnes * price.iloc[-1] * rate:,.0f}")
+        calc += [
+            ui.Card(
+                "Expected value (cedis)",
+                money(tonnes * mid * rate, "GH₵"),
+                sub=f"80 % range {money(tonnes * lo * rate, 'GH₵')} – "
+                f"{money(tonnes * hi * rate, 'GH₵')}",
+            ),
+            ui.Card(
+                "At today's price (cedis)",
+                money(spot_value * rate, "GH₵"),
+                sub=f"at GH₵{rate:,.2f} per US$",
+            ),
+        ]
+    ui.cards(calc)
     st.caption(f"For {target:%B %Y}. Simulated values on public prices, not trading advice.")
 
 # ------------------------------------------------------- recent forecast record

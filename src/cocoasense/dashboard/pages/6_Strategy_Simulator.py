@@ -140,7 +140,7 @@ fig = px.line(
     },
     color_discrete_map=data.STRATEGY_COLOURS,
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, theme=None)
 fd = results[results["strategy"] == "forecast_driven"]
 fig_w = px.area(
     fd,
@@ -149,7 +149,7 @@ fig_w = px.area(
     labels={"decision_date": "Decision month", "w": "Share sold forward"},
 )
 fig_w.update_yaxes(range=[0, 1])
-st.plotly_chart(fig_w, use_container_width=True)
+st.plotly_chart(fig_w, use_container_width=True, theme=None)
 st.caption(
     "Computed live from artifacts/forecasts/test_predictions.parquet with the formulas "
     "in docs/simulation_assumptions.md. Period: decision months "

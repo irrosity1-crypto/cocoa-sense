@@ -40,7 +40,12 @@ at_t = preds[(preds["decision_date"] == t) & (preds["model"].isin(models))]
 
 fig = go.Figure()
 fig.add_trace(
-    go.Scatter(x=known.index, y=known.values, name="Known price history", line={"color": "#3b2a1a"})
+    go.Scatter(
+        x=known.index,
+        y=known.values,
+        name="Known price history",
+        line={"color": "#e8a33d", "width": 2},
+    )
 )
 colors = {m: data.MODEL_COLOURS.get(data.label(m)) for m in data.MODEL_LABELS}
 for model, g in at_t.groupby("model"):
@@ -68,12 +73,12 @@ if reveal:
             x=after.index,
             y=after.values,
             name="What actually happened",
-            line={"color": "black", "width": 3},
+            line={"color": "#e6e9ef", "width": 3},
         )
     )
 fig.add_vline(x=t, line_dash="dash", line_color="grey")
 fig.update_layout(height=450, xaxis_title="Month", yaxis_title="US$ per tonne", margin={"t": 20})
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, theme=None)
 
 st.subheader(f"Forecasts made at the end of {t:%B %Y}")
 cols = ["model", "horizon", "target_date", "y_pred", "lower", "upper"]

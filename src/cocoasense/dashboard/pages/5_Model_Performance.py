@@ -89,7 +89,7 @@ fig = px.bar(
     category_orders={"period": [data.PERIOD_LABELS[p] for p in periods[1:]]},
     color_discrete_map=data.MODEL_COLOURS,
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, theme=None)
 
 st.subheader("Error over time")
 p = preds[preds["horizon"] == horizon].copy()
@@ -110,7 +110,7 @@ fig2 = px.line(
     },
     color_discrete_map=data.MODEL_COLOURS,
 )
-st.plotly_chart(fig2, use_container_width=True)
+st.plotly_chart(fig2, use_container_width=True, theme=None)
 
 with st.expander("Validation leaderboard (2016–2019, used for model selection)"):
     for h in (1, 3):

@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from cocoasense.dashboard import data
+from cocoasense.dashboard import data, ui
 
 data.page_header("CocoaSense AI — Overview")
 
@@ -36,65 +36,93 @@ ev = data.cfg().evaluation
 price = monthly["price_usd_t"].dropna()
 fx = data.fx_latest()
 rate = fx[1] if fx else None
-c1, c2, c3, c4 = st.columns(4)
-c1.metric(
-    "Months of price data",
-    f"{len(price)}",
-    f"{price.index.min():%b %Y} – {price.index.max():%b %Y}",
-    delta_color="off",
-    delta_arrow="off",
+last, prev = float(price.iloc[-1]), float(price.iloc[-2])
+year = price.loc[price.index >= price.index[-1] - pd.DateOffset(months=11)]
+ui.hero(
+    f"US${last:,.0f}",
+    "per tonne",
+    (last / prev - 1) * 100,
+    f"{price.index[-1]:%B %Y} average" + (f" · ≈ GH₵{last * rate:,.0f}/t" if rate else ""),
 )
-c2.metric(
-    "Training cut-off", "Dec 2019", "no model sees later data", delta_color="off", delta_arrow="off"
+year_ago = price.get(price.index[-1] - pd.DateOffset(months=12))
+fx_prev = data.fx_monthly()
+fx_prev = fx_prev.loc[fx_prev.index <= price.index[-1] - pd.DateOffset(months=1)]
+ui.cards(
+    [
+        ui.Card(
+            "12-month change",
+            f"{(last / year_ago - 1) * 100:+.1f}%" if year_ago else "–",
+            sub=f"vs US${year_ago:,.0f} a year earlier" if year_ago else "",
+        ),
+        ui.Card("12-month range", f"{year.min():,.0f}–{year.max():,.0f}", sub="US$ per tonne"),
+        ui.Card(
+            "US$ to cedi",
+            f"GH₵{rate:,.2f}" if rate else "–",
+            ((rate / fx_prev.iloc[-1] - 1) * 100) if rate and not fx_prev.empty else None,
+            sub=f"{fx[0]:%d %b %Y} · live rate" if fx else "",
+            delta_suffix=" vs last month",
+        ),
+        ui.Card(
+            "History",
+            f"{len(price)} months",
+            sub=f"{price.index.min():%b %Y} – {price.index.max():%b %Y} · trained to Dec 2019",
+        ),
+    ]
 )
-c3.metric(
-    "Latest monthly price",
-    f"US$ {price.iloc[-1]:,.0f}/t",
-    f"{price.index[-1]:%b %Y} · ≈ {data.cedis(price.iloc[-1], rate)}/t"
-    if rate
-    else f"{price.index[-1]:%b %Y}",
-    delta_color="off",
-    delta_arrow="off",
-)
-if fx:
-    c4.metric(
-        "US$ to cedi rate",
-        f"GH₵ {fx[1]:,.2f}",
-        f"{fx[0]:%d %b %Y} · updates automatically",
-        delta_color="off",
-        delta_arrow="off",
-    )
 
+log_scale = st.toggle("Log scale", value=False, key="ov_log")
 fig = go.Figure()
 fig.add_trace(
-    go.Scatter(x=price.index, y=price.values, name="Cocoa price", line={"color": "#3b2a1a"})
+    go.Scatter(
+        x=price.index,
+        y=price.values,
+        name="Cocoa price",
+        line={"color": ui.THEME["accent"], "width": 1.8},
+        fill="tozeroy" if not log_scale else None,
+        fillgradient={
+            "type": "vertical",
+            "colorscale": [[0, "rgba(232,163,61,0)"], [1, "rgba(232,163,61,0.32)"]],
+        },
+        hovertemplate="%{x|%b %Y}<br>US$%{y:,.0f}/t<extra></extra>",
+    )
 )
-fig.add_vrect(
-    x0=ev.ts("validation_start"),
-    x1=ev.ts("validation_end"),
-    fillcolor="#f2c14e",
-    opacity=0.25,
-    line_width=0,
-    annotation_text="validation",
-    annotation_position="top",
-)
-fig.add_vrect(
-    x0=ev.ts("test_start"),
-    x1=price.index.max(),
-    fillcolor="#5fa8d3",
-    opacity=0.25,
-    line_width=0,
-    annotation_text="test (held out)",
-    annotation_position="top",
-)
+for x, label in (
+    (ev.ts("validation_start"), "validation starts"),
+    (ev.ts("test_start"), "test starts (models frozen)"),
+):
+    fig.add_vline(x=x, line_width=1, line_dash="dot", line_color=ui.THEME["muted"])
+    fig.add_annotation(
+        x=x,
+        y=1,
+        yref="paper",
+        text=label,
+        showarrow=False,
+        xanchor="left",
+        font={"color": ui.THEME["muted"], "size": 11},
+    )
 fig.update_layout(
-    height=380,
-    margin={"t": 30, "b": 10},
-    yaxis_type="log",
-    xaxis_title="Month",
-    yaxis_title="US$ per tonne (log scale)",
+    height=430,
+    yaxis_type="log" if log_scale else "linear",
+    yaxis_title="US$ per tonne",
+    hovermode="x unified",
+    showlegend=False,
+    xaxis={
+        "range": [price.index.max() - pd.DateOffset(years=10), price.index.max()],
+        "rangeselector": {
+            "buttons": [
+                {"count": 1, "label": "1Y", "step": "year", "stepmode": "backward"},
+                {"count": 3, "label": "3Y", "step": "year", "stepmode": "backward"},
+                {"count": 5, "label": "5Y", "step": "year", "stepmode": "backward"},
+                {"count": 10, "label": "10Y", "step": "year", "stepmode": "backward"},
+                {"step": "all", "label": "ALL"},
+            ],
+            "bgcolor": ui.THEME["panel2"],
+            "activecolor": ui.THEME["accent"],
+            "font": {"color": ui.THEME["text"]},
+        },
+    },
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, theme=None)
 
 fxm = data.fx_monthly()
 if not fxm.empty:
@@ -114,11 +142,11 @@ if not fxm.empty:
                     y=daily["ghs_per_usd"],
                     name="Daily (live API)",
                     mode="markers",
-                    marker={"size": 4, "color": "#3b2a1a"},
+                    marker={"size": 4, "color": "#e6e9ef"},
                 )
             )
         fxfig.update_layout(height=300, margin={"t": 10, "b": 10}, yaxis_title="GH₵ per US$")
-        st.plotly_chart(fxfig, use_container_width=True)
+        st.plotly_chart(fxfig, use_container_width=True, theme=None)
         st.caption(
             "IMF monthly averages up to January 2026, then the average of daily rates from the "
             "free currency-api service (public domain), refreshed whenever the app updates "
@@ -165,7 +193,7 @@ if scored is not None and not scored.empty:
     rate["Model"] = rate["model"].map(data.label)
     rate["Track"] = rate["track"].map({"frozen": "Frozen", "learning": "Learning"})
     fig = go.Figure()
-    for track, colour in (("Frozen", "#7f7f7f"), ("Learning", "#1f77b4")):
+    for track, colour in (("Frozen", "#9aa4b2"), ("Learning", "#e8a33d")):
         r = rate[rate["Track"] == track]
         fig.add_bar(
             x=r["Model"], y=r["rate"], name=track, marker_color=colour, text=r["rate"].round(0)
@@ -177,7 +205,7 @@ if scored is not None and not scored.empty:
         yaxis_range=[0, 100],
         margin={"t": 20},
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, theme=None)
     st.caption("Details, success vs fail counts and confidence checks: see the Scorecard page.")
 
 sim = data.simulation_table("strategy_metrics.csv")

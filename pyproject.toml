@@ -74,6 +74,7 @@ known-first-party = ["cocoasense", "tests"]
 "src/cocoasense/dashboard/pages/*" = ["N999"]
 "src/cocoasense/dashboard/Overview.py" = ["N999"]  # Streamlit shows the file name in the sidebar
 "notebooks/**" = ["T20", "E501"]
+"src/cocoasense/dashboard/ui.py" = ["E501", "UP031"]  # embedded CSS template
 
 [tool.mypy]
 python_version = "3.12"
