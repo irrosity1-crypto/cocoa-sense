@@ -106,8 +106,9 @@ cedi responds to cocoa export earnings more than it drives world prices.
 
 ## 5. Forward-sales simulation (sub-question 3)
 
-Frozen rule: XGBoost-driven, `a = 2.0`, horizon 3 months, forward price = decision-month spot
-price (spot proxy), financing 10 % a year, 82 decision months 2019-10 – 2026-07. Source:
+Frozen rule: XGBoost-driven, `a = 2.0`, horizon 3 months, forward price = decision-month
+World Bank/ICCO price (an average of the nearest three futures positions; see
+`simulation_assumptions.md`), financing 10 % a year, 82 decision months 2019-10 – 2026-07. Source:
 `artifacts/simulation/strategy_metrics.md`.
 
 | Period | Strategy | Mean US$/t | Worst 10 % mean US$/t | Regret vs best fixed | Win rate vs 50/50 | Mean forward share |
@@ -152,8 +153,9 @@ price (spot proxy), financing 10 % a year, 82 decision months 2019-10 – 2026-0
 
 It shows that, under the stated assumptions and on public monthly prices, models frozen at the end
 of 2019 would not have improved a simple forward-selling policy over 2020–2026, and it explains
-why. It does not measure Ghana's or COCOBOD's actual gains or losses, and the spot-proxy forward
-price probably overstates what forward selling earned during the surge (`limitations.md`).
+why. It does not measure Ghana's or COCOBOD's actual gains or losses, and the averaged
+near-futures forward price may overstate what forward selling earned during the surge, when the
+curve was in steep backwardation (`limitations.md`).
 
 ## 8. LSTM stretch model (added after the main final run)
 

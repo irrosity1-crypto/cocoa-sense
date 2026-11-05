@@ -26,8 +26,9 @@ fz = frozen["simulation"]
 sim_cfg = data.cfg().simulation
 st.markdown(
     f"Frozen rule (chosen on 2016–2019 validation data): **{data.label(fz['driver_model'])}** "
-    f"forecasts, **a = {fz['a']}**, horizon **{fz['horizon']} months**. Forward price = spot "
-    "price at the decision month (*spot proxy*: no futures data)."
+    f"forecasts, **a = {fz['a']}**, horizon **{fz['horizon']} months**. Forward price = the "
+    "decision month's World Bank/ICCO price, an average of the nearest three futures positions "
+    "(not the exact delivery contract; no openly licensed contract data exists)."
 )
 
 c1, c2, c3 = st.columns(3)
