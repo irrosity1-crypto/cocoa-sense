@@ -124,6 +124,8 @@ def _running_port() -> int | None:
 
 def _visible_window_pids() -> set[int]:  # pragma: no cover - Windows API
     """Process ids that own a visible top-level window."""
+    if sys.platform != "win32":
+        return set()
     import ctypes
     from ctypes import wintypes
 
