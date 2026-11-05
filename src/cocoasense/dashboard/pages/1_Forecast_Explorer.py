@@ -41,7 +41,7 @@ fig = go.Figure()
 fig.add_trace(
     go.Scatter(x=known.index, y=known.values, name="Known price history", line={"color": "#3b2a1a"})
 )
-colors = {"naive": "#7f7f7f", "arima": "#1f77b4", "random_forest": "#2ca02c", "xgboost": "#d62728"}
+colors = {m: data.MODEL_COLOURS.get(data.label(m)) for m in data.MODEL_LABELS}
 for model, g in at_t.groupby("model"):
     g = g.sort_values("horizon")
     fig.add_trace(
@@ -102,4 +102,7 @@ if "Error %" in shown:
 st.dataframe(shown.style.format(fmt), hide_index=True, use_container_width=True)
 if not reveal:
     st.caption("Actual prices after the decision month are hidden until you reveal them.")
-st.caption("Source: artifacts/forecasts/test_predictions.parquet (models frozen at Dec 2019).")
+st.caption(
+    "Source: artifacts/forecasts/test_predictions.parquet and lstm_test_predictions.parquet "
+    "(models frozen at Dec 2019)."
+)

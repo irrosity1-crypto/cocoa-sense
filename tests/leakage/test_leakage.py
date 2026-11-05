@@ -126,7 +126,7 @@ def test_3_test_period_locked(history: pd.DataFrame, project: ProjectConfig) -> 
         )
 
 
-@pytest.mark.parametrize("name", ["random_forest", "xgboost", "arima", "naive"])
+@pytest.mark.parametrize("name", ["random_forest", "xgboost", "arima", "naive", "lstm"])
 def test_4_fit_on_training_only(history: pd.DataFrame, project: ProjectConfig, name: str) -> None:
     """Hyperparameters, intervals and coefficients do not depend on post-cut-off data."""
     _, info_a = forecast_window(

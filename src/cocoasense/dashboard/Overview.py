@@ -74,7 +74,7 @@ fig.update_layout(
 st.plotly_chart(fig, use_container_width=True)
 
 st.subheader("Held-out test results (January 2020 onward)")
-table = data.metrics("test_metrics.csv")
+table = data.test_metrics()
 if table is None:
     data.missing("Test-period metrics", "evaluate --final")
 else:
@@ -99,7 +99,7 @@ else:
         )
     st.caption(
         "MAE vs naive below 1 means the model beat the last-price baseline. "
-        "Source: artifacts/metrics/test_metrics.csv"
+        "Source: artifacts/metrics/test_metrics.csv (LSTM: test_metrics_with_lstm.csv)"
     )
 
 sim = data.simulation_table("strategy_metrics.csv")

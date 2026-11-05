@@ -122,3 +122,27 @@ Each entry: date, options considered, choice, reason. Newest last.
   development stage and freeze were rerun after this change, before any test-period run.
 - **Reason:** the build requirement is bit-for-bit identical metrics on rerun, and leakage test 4
   compares fitted settings exactly.
+
+## D16 · 2026-11-05 · LSTM stretch model added after the main final run
+- **Context:** the author asked for the LSTM stretch goal after the four main models had been
+  frozen and evaluated on the test period (`artifacts/final_runs.log`, first entry).
+- **Options:** (a) add the LSTM to `frozen.yaml` and rerun the main final run; (b) give the LSTM
+  its own development → freeze → final cycle and leave the original results untouched.
+- **Choice:** (b). `configs/lstm.yaml` (architecture, grid, training settings) and the code were
+  committed before the LSTM was run on any real data. The development stage (`cocoasense lstm
+  train`) fits on targets to 2015-12 and forecasts 2016–2019; `cocoasense lstm freeze` picks the
+  training start from validation MAE only and writes `configs/frozen_lstm.yaml`, which is
+  committed before the one logged `cocoasense lstm evaluate --final` run. The final LSTM is fitted
+  on targets up to 2019-12 and never refitted. `test_metrics.csv` and the simulation's frozen rule
+  are unchanged; the LSTM appears in `test_metrics_with_lstm.csv` and, as a driver, only in the
+  reported-only sensitivity table.
+- **Design (fixed in advance):** same task as the tree models (h-month log return, split-conformal
+  80 % intervals from out-of-fold residuals, `TimeSeriesSplit` with gap = h inside the training
+  rows). One LSTM layer with a linear head; grid over input set {returns only, returns + log
+  price}, lookback {12, 24} months and hidden size {8, 16}; 200 full-batch Adam epochs, learning
+  rate 0.01, weight decay 1e-4, no early stopping; 3 seeded networks averaged; single-threaded,
+  so refits are bit-for-bit identical (leakage test 4 includes the LSTM).
+- **Caveat (stated in limitations):** unlike the original four, the LSTM was designed by someone
+  who had already seen the other models' test results, so its test is not fully blind. To limit
+  this, both input sets (with and without the price level) are in the grid and the choice is left
+  to cross-validation on training data, and the LSTM is not changed after its test run.

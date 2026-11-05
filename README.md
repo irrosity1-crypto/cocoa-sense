@@ -5,7 +5,8 @@ Forward-Sales Decision Support System for Ghana** — final-year project, Comput
 Engineering.
 
 CocoaSense AI forecasts the monthly world cocoa price 1 and 3 months ahead with four models
-(naive baseline, ARIMA, Random Forest, XGBoost), tests whether those forecasts would have improved
+(naive baseline, ARIMA, Random Forest, XGBoost), plus an LSTM stretch model, tests whether those
+forecasts would have improved
 simulated forward-sales decisions, and presents everything in a Streamlit dashboard with a date
 picker that shows only what was knowable on the chosen date.
 
@@ -28,6 +29,7 @@ git clone https://github.com/irrosity1-crypto/cocoa-sense.git
 cd cocoa-sense
 uv sync --all-groups          # exact versions from uv.lock
 uv run cocoasense all         # raw data -> validation -> models -> test -> simulation -> figures
+                              # (about 17 minutes on a laptop CPU; the LSTM stages take over half)
 uv run cocoasense dashboard   # opens the dashboard in a browser
 ```
 
@@ -71,17 +73,18 @@ data/raw (immutable + manifest.json)
 | `cocoasense simulate` | forward-sales simulation, stress scenarios, sensitivity |
 | `cocoasense report` | figures in `artifacts/figures/` |
 | `cocoasense dashboard` | Streamlit app (reads artifacts only) |
+| `cocoasense lstm train` / `lstm freeze` / `lstm evaluate --final` | the LSTM stretch model's own validation → freeze → final cycle (`configs/frozen_lstm.yaml`) |
 
 ## Repository layout
 
 ```
-configs/      data, features, models, evaluation, simulation (+ frozen.yaml after freeze)
+configs/      data, features, models, evaluation, simulation, lstm (+ frozen.yaml, frozen_lstm.yaml)
 data/raw/     World Bank Pink Sheet, FRED cross-check, IMF exchange rate, manifest.json
 src/cocoasense/
   ingestion/  download, manual fallback, manifest
   validation/ parsers (one per source) and data-quality checks
   features/   leakage-safe features and targets
-  models/     naive, ARIMA, Random Forest, XGBoost behind one Forecaster interface
+  models/     naive, ARIMA, Random Forest, XGBoost, LSTM behind one Forecaster interface
   evaluation/ frozen-origin walk-forward, metrics, experiments, reports, figures
   simulation/ strategies, engine, futures provider, metrics
   dashboard/  Streamlit multipage app
@@ -111,12 +114,18 @@ in `docs/results.md`):
 | ARIMA (best) | 6.87 % | 14.88 % |
 | Random Forest | 7.11 % | 14.95 % |
 | XGBoost | 7.17 % | 15.12 % |
+| LSTM (stretch, added later — see below) | 8.13 % | 16.58 % |
 
 - No model beat the naive baseline by a statistically significant margin; the 5–6 % edge seen on
   2016–2019 validation data shrank to 1–4 %.
 - The GHS/USD exchange rate did not improve forecasts.
 - The forecast-driven selling rule earned 0.8 % less than a fixed 50/50 split. In the 2023–25
   surge the frozen models expected high prices to revert and sold forward too early.
+- **LSTM stretch model** (added after the main test run with its own committed freeze, decision
+  D16; frozen at Dec 2019 like the others): least accurate overall, but the most accurate model in
+  the 2023–25 surge (MAE 7–10 % below naive), because it learned momentum where the tree models
+  learned mean reversion. It was clearly worse in calm and post-peak months.
+  `docs/results.md` section 8.
 
 ## Quality gate
 

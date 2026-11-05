@@ -40,7 +40,7 @@ def test_naive_is_last_price(project: ProjectConfig, history: pd.DataFrame) -> N
 def test_label_and_unknown_model(project: ProjectConfig) -> None:
     assert build_model("naive", project, label="naive_x").name == "naive_x"
     with pytest.raises(KeyError):
-        build_model("lstm", project)
+        build_model("transformer", project)
 
 
 def test_conformal_quantile() -> None:

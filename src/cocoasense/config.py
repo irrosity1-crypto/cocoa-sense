@@ -127,6 +127,37 @@ class ModelsSection(_Strict):
     xgboost: GridConfig
 
 
+class LstmConfig(_Strict):
+    """Contents of ``configs/lstm.yaml`` (stretch model, see docs/decisions.md D16).
+
+    ``grid`` is searched with time-series cross-validation inside the training window, exactly
+    like the tree models. ``input_sets`` name per-month input channels from
+    :func:`cocoasense.features.build.build_features`.
+    """
+
+    input_sets: list[list[str]]
+    lookback: list[int]
+    hidden_size: list[int]
+    epochs: int = Field(ge=1)
+    learning_rate: float = Field(gt=0)
+    weight_decay: float = Field(ge=0)
+    n_seeds: int = Field(ge=1)
+
+    @field_validator("input_sets")
+    @classmethod
+    def _non_empty(cls, v: list[list[str]]) -> list[list[str]]:
+        if not v or any(not s for s in v):
+            raise ValueError("input_sets must be a non-empty list of non-empty lists")
+        return v
+
+    @field_validator("lookback", "hidden_size")
+    @classmethod
+    def _positive_list(cls, v: list[int]) -> list[int]:
+        if not v or any(x <= 0 for x in v):
+            raise ValueError("lookback and hidden_size must be non-empty positive integers")
+        return v
+
+
 class ModelsConfig(_Strict):
     """Contents of ``configs/models.yaml``."""
 
@@ -263,6 +294,10 @@ class Paths:
     def frozen(self) -> Path:
         return self.configs / "frozen.yaml"
 
+    @property
+    def frozen_lstm(self) -> Path:
+        return self.configs / "frozen_lstm.yaml"
+
     def ensure(self) -> None:
         """Create output directories if they do not exist."""
         for p in (
@@ -288,6 +323,7 @@ class ProjectConfig:
     models: ModelsConfig
     evaluation: EvaluationConfig
     simulation: SimulationConfig
+    lstm: LstmConfig | None = None  # optional stretch model (configs/lstm.yaml)
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
@@ -311,12 +347,20 @@ def load_config(root: Path | None = None) -> ProjectConfig:
         models=ModelsConfig(**_read_yaml(cfg_dir / "models.yaml")),
         evaluation=EvaluationConfig(**_read_yaml(cfg_dir / "evaluation.yaml")),
         simulation=SimulationConfig(**_read_yaml(cfg_dir / "simulation.yaml")),
+        lstm=LstmConfig(**_read_yaml(cfg_dir / "lstm.yaml"))
+        if (cfg_dir / "lstm.yaml").exists()
+        else None,
     )
 
 
 def load_frozen(paths: Paths) -> dict[str, Any]:
     """Load ``configs/frozen.yaml`` (written by ``cocoasense freeze``)."""
     return _read_yaml(paths.frozen)
+
+
+def load_frozen_lstm(paths: Paths) -> dict[str, Any]:
+    """Load ``configs/frozen_lstm.yaml`` (written by ``cocoasense lstm freeze``)."""
+    return _read_yaml(paths.frozen_lstm)
 
 
 def setup_logging(level: int = logging.INFO) -> None:

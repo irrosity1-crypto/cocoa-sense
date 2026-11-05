@@ -112,6 +112,13 @@ SMALL_OVERRIDES = {
         "train_start_candidates": ["1982-01", "1991-01"],
     },
     "simulation.yaml": {"a_grid": [0.0, 0.5, 1.0]},
+    "lstm.yaml": {
+        "input_sets": [["ret_1m"], ["ret_1m", "log_price"]],
+        "lookback": [6],
+        "hidden_size": [4],
+        "epochs": 15,
+        "n_seeds": 1,
+    },
 }
 
 
@@ -119,7 +126,7 @@ SMALL_OVERRIDES = {
 def project(tmp_path: Path) -> ProjectConfig:
     """A temporary project root with repo configs, small grids and a SYNTHETIC timeline."""
     cfg_dir = tmp_path / "configs"
-    shutil.copytree(REPO_CONFIGS, cfg_dir, ignore=shutil.ignore_patterns("frozen.yaml"))
+    shutil.copytree(REPO_CONFIGS, cfg_dir, ignore=shutil.ignore_patterns("frozen*.yaml"))
     for name, override in SMALL_OVERRIDES.items():
         path = cfg_dir / name
         content = yaml.safe_load(path.read_text(encoding="utf-8"))

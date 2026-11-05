@@ -26,6 +26,7 @@ dependencies = [
     "matplotlib>=3.9",
     "plotly>=5.22",
     "streamlit>=1.38",
+    "torch>=2.4",
 ]
 
 [project.optional-dependencies]
@@ -43,6 +44,15 @@ dev = [
     "types-PyYAML",
     "types-requests",
 ]
+
+# CPU-only PyTorch wheels (the default PyPI wheel for Linux bundles CUDA, about 2 GB).
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform != 'darwin'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cocoasense"]
