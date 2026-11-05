@@ -27,7 +27,10 @@ doubled.
 
 **Why these models?**
 A ladder of complexity: naive → statistical (ARIMA) → machine learning (Random Forest, XGBoost).
-LSTM was left as a stretch goal: with ~400–800 monthly points it would mostly fit noise.
+An LSTM was added afterwards as a stretch model with its own validation → freeze → final cycle
+(D16). As expected with ~700 monthly training sequences, it was the least accurate model overall
+(1-month MAPE 8.13 %), but the best in the 2023–25 surge, because it learned momentum where the
+trees learned mean reversion. Neither belief held across regimes.
 
 **Is this Ghana's real gain or loss?**
 No. It is a simulation on public monthly prices with a spot-proxy forward price. Contract terms,

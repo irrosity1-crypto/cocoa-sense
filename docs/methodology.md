@@ -69,10 +69,17 @@ also dropped, so no label can leak.
 | ARIMA | ARIMA(p,1,q) on log price, no drift | p, q ∈ 0..3 by AIC | native, transformed from log |
 | Random Forest | predicts h-month log return from features | grid search, `TimeSeriesSplit(5, gap=h)`, MAE | split-conformal on out-of-fold residuals |
 | XGBoost | as above | as above | as above |
+| LSTM (stretch, D16) | 1-layer LSTM on the last 12/24 months of inputs → h-month log return; 3 seeded nets averaged | input set, lookback, hidden size by the same `TimeSeriesSplit`; training start on validation | as above |
 
 ARIMA "frozen" forecasting uses `SARIMAXResults.apply(new_data, refit=False)`: the Kalman filter
 absorbs new observations, the coefficients stay fixed. Tree models are refitted from scratch only
 at the cut-off; forecasts reuse the fitted estimator. Seeds come from `configs/models.yaml`.
+
+The LSTM (`configs/lstm.yaml`) was added after the main final run and has its own frozen file,
+`configs/frozen_lstm.yaml`, and its own logged final run. Inputs and target are standardised on
+the rows being fitted; training is full-batch Adam for a fixed 200 epochs with weight decay and
+no early stopping, single-threaded so that refits are bit-for-bit identical. All five leakage
+tests include it.
 
 ## 7. Evaluation
 

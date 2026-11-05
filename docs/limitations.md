@@ -22,5 +22,8 @@
 7. **Exchange rate coverage.** The monthly FX series ends January 2026, so the FX experiment
    covers a slightly shorter test window than the main models.
 8. **No fundamentals.** Production, grindings and stocks data (paid ICCO bulletins) are not used.
-9. **Model scope.** LSTM and futures-curve simulation are stretch items and are not part of the
-   core results.
+9. **Model scope.** Futures-curve simulation is a stretch item and is not part of the results.
+   The LSTM stretch model was added after the main test run (decision D16). Its configuration and
+   frozen settings were committed before its own test run, but it was designed by someone who had
+   already seen the other models' test results, so its test is not fully blind. It is reported
+   separately (`docs/results.md` section 8) and does not change the main results.

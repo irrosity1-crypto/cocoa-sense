@@ -155,8 +155,63 @@ of 2019 would not have improved a simple forward-selling policy over 2020–2026
 why. It does not measure Ghana's or COCOBOD's actual gains or losses, and the spot-proxy forward
 price probably overstates what forward selling earned during the surge (`limitations.md`).
 
+## 8. LSTM stretch model (added after the main final run)
+
+The LSTM was added on 2026-11-05, after the results above, with its own development → freeze →
+final cycle (decision D16): configuration committed before any real-data run (`ee684ba`),
+validation results and `configs/frozen_lstm.yaml` committed before the test run (`9491da3`), one
+logged test run (`artifacts/final_runs.log`, entry `"run": "lstm_addendum"`). It was trained on
+data up to December 2019 and frozen, exactly like the other models. Sections 1–7 are unchanged.
+
+**Validation (2016–2019).** The best training start was 1960 (mean MAE 151 vs 169 for 1980 and
+192 for 1991). Even so, the LSTM only matched naive: MAE ratio 1.004 at 1 month and 1.019 at
+3 months, compared with about 0.94 for the tree models
+(`artifacts/metrics/lstm_validation_metrics.md`).
+
+**Test, full period** (`artifacts/metrics/test_leaderboard_with_lstm_full_h{1,3}.md`; same 82
+months as section 2):
+
+| Horizon | MAPE % | MAE US$/t | MAE vs naive | Direction correct | 80 % interval coverage | DM p vs naive |
+|---|---|---|---|---|---|---|
+| 1 month | 8.13 | 427 | 1.082 | 58.5 % | 67.1 % | 0.60 |
+| 3 months | 16.58 | 852 | 1.029 | 57.3 % | 75.6 % | 0.84 |
+
+The LSTM was the **least accurate of the five models** over the full period at both horizons,
+though not significantly worse than naive.
+
+**By period** (MAE vs naive, `artifacts/metrics/test_metrics_with_lstm.csv`):
+
+| Period | 1 month | 3 months | 3-month bias US$/t |
+|---|---|---|---|
+| Pre-surge 2020–2022 | 1.141 | 1.556 | −10 |
+| Surge 2023 – Jan 2025 | **0.931** | **0.898** | −426 |
+| Post-peak Feb 2025 – | 1.256 (DM p = 0.031) | 1.093 | +1,068 |
+
+- In the **surge** the LSTM was the most accurate model at both horizons and called the direction
+  correctly in 84 % (1 month) and 76 % (3 months) of months. Its 3-month surge bias (−426 US$/t)
+  was about half that of the other models (−833 to −1,096).
+- **Why:** cross-validation on 1960–2019 data chose the returns-only input set at both horizons
+  (`artifacts/metrics/lstm_test_model_info.json`), so the network had no price level to revert
+  to and learned short-term **momentum**. With the price at US$3,000–5,000/t it predicted an
+  average 3-month rise of 14.8 %, where XGBoost predicted a 4.8 % fall (computed from the stored
+  forecasts).
+- The same momentum hurt elsewhere: it was clearly worse than naive in the calm pre-surge period
+  (3-month MAE ratio 1.556) and kept forecasting rises after the January 2025 peak. Its 1-month
+  loss to naive after the peak is significant at the 5 % level.
+- **Interpretation:** the tree models learned mean reversion and the LSTM learned momentum; each
+  belief fitted one regime of the test period and failed in another. Neither changes the headline
+  that no model reliably beat the naive forecast.
+
+**Simulation (reported only).** With the LSTM as the forecast-driven rule's driver (a = 2.0 and
+h = 3 kept from the XGBoost-based freeze), mean revenue was 4,335 US$/t vs 4,204 for Fixed 50/50
+(+3.1 %), with a mean forward share of 0.30, i.e. it mostly waited during the rally
+(`artifacts/simulation/sensitivity.md`). This is a post-hoc observation, not the system's result:
+`a` was not tuned for the LSTM, the LSTM's forecasts were less accurate overall, and the gain comes
+from a single exceptional rally in a 7-year window.
+
 ## Figures
 
 `artifacts/figures/`: `eda_price_history.png`, `eda_returns_volatility.png`,
 `eda_exchange_rate.png`, `validation_actual_vs_pred_h{1,3}.png`, `test_actual_vs_pred_h{1,3}.png`,
-`test_rolling_mape_h{1,3}.png`, `test_error_by_period.png`, `simulation_strategy_outcomes.png`.
+`test_rolling_mape_h{1,3}.png`, `test_error_by_period.png`, `simulation_strategy_outcomes.png`,
+`test_actual_vs_pred_with_lstm_h{1,3}.png`.
