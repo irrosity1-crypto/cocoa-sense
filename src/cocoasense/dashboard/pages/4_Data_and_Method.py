@@ -44,7 +44,9 @@ dq = data.text(data.cfg().paths.artifacts / "data_quality.md")
 if dq is None:
     data.missing("The data-quality report", "validate")
 else:
-    st.markdown(dq)
+    # Drop the report's own title and demote its headings below this page's subheaders.
+    body = [ln for ln in dq.splitlines() if not ln.startswith("# ")]
+    st.markdown("\n".join("###" + ln[1:] if ln.startswith("##") else ln for ln in body))
 
 st.subheader("Frozen configuration")
 fz = data.frozen()

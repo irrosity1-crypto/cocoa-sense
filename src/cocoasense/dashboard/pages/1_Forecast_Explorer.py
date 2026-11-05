@@ -82,7 +82,7 @@ table = at_t[cols].sort_values(["horizon", "model"]).copy()
 table["model"] = table["model"].map(data.label)
 table["target_date"] = pd.to_datetime(table["target_date"]).dt.strftime("%b %Y")
 if reveal:
-    table["error %"] = (table["y_pred"] - table["y_true"]) / table["y_true"] * 100
+    table["Error %"] = (table["y_pred"] - table["y_true"]) / table["y_true"] * 100
 rename = {
     "model": "Model",
     "horizon": "Months ahead",
@@ -92,7 +92,14 @@ rename = {
     "upper": "Upper (80 %)",
     "y_true": "Actual US$/t",
 }
-st.dataframe(table.rename(columns=rename), hide_index=True, use_container_width=True)
+shown = table.rename(columns=rename)
+money = [
+    c for c in ("Forecast US$/t", "Lower (80 %)", "Upper (80 %)", "Actual US$/t") if c in shown
+]
+fmt = {c: "{:,.0f}" for c in money}
+if "Error %" in shown:
+    fmt["Error %"] = "{:+.1f}"
+st.dataframe(shown.style.format(fmt), hide_index=True, use_container_width=True)
 if not reveal:
     st.caption("Actual prices after the decision month are hidden until you reveal them.")
 st.caption("Source: artifacts/forecasts/test_predictions.parquet (models frozen at Dec 2019).")

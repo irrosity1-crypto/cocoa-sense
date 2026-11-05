@@ -62,6 +62,7 @@ known-first-party = ["cocoasense", "tests"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["T20"]
 "src/cocoasense/dashboard/pages/*" = ["N999"]
+"src/cocoasense/dashboard/Overview.py" = ["N999"]  # Streamlit shows the file name in the sidebar
 "notebooks/**" = ["T20", "E501"]
 
 [tool.mypy]

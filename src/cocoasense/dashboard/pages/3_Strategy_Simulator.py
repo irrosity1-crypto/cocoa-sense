@@ -73,7 +73,7 @@ results = simulate(
     delivery_override=override,
 )
 
-m = strategy_metrics(results)
+m = data.strategy_display(strategy_metrics(results))
 st.dataframe(
     m[
         [
@@ -101,7 +101,8 @@ st.dataframe(
     hide_index=True,
     use_container_width=True,
 )
-total = results.groupby("strategy")["revenue"].sum() / 1e6
+results["strategy_name"] = results["strategy"].map(data.strategy_label)
+total = results.groupby("strategy_name")["revenue"].sum() / 1e6
 st.caption(
     f"Total simulated revenue over {results['decision_date'].nunique()} decisions "
     f"(US$ million): " + ", ".join(f"{k} {v:,.1f}" for k, v in total.items())
@@ -111,12 +112,13 @@ fig = px.line(
     results,
     x="decision_date",
     y="revenue_per_t",
-    color="strategy",
+    color="strategy_name",
     labels={
         "decision_date": "Decision month",
         "revenue_per_t": "Revenue, US$/t",
-        "strategy": "Strategy",
+        "strategy_name": "Strategy",
     },
+    color_discrete_map=data.STRATEGY_COLOURS,
 )
 st.plotly_chart(fig, use_container_width=True)
 fd = results[results["strategy"] == "forecast_driven"]

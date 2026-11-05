@@ -11,7 +11,7 @@ from cocoasense import pipeline
 from cocoasense.config import ProjectConfig
 
 DASH = Path(__file__).resolve().parents[2] / "src" / "cocoasense" / "dashboard"
-PAGES = [DASH / "app.py", *sorted((DASH / "pages").glob("*.py"))]
+PAGES = [DASH / "Overview.py", *sorted((DASH / "pages").glob("*.py"))]
 
 
 @pytest.mark.parametrize("page", PAGES, ids=lambda p: p.name)

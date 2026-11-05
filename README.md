@@ -35,6 +35,18 @@ uv run cocoasense dashboard   # opens the dashboard in a browser
 `--refresh` to download fresh copies; old files are archived, never overwritten.
 On Linux/macOS `make reproduce`, `make lint` and `make test` do the same.
 
+## Dashboard
+
+| | |
+|---|---|
+| ![Overview](docs/figures/dashboard_01_overview.png) | ![Forecast Explorer with actual prices revealed](docs/figures/dashboard_03_forecast_explorer_revealed.png) |
+| **Overview** — data coverage, cut-off and headline test results | **Forecast Explorer** — forecasts made at a chosen past date; actual prices stay hidden until "reveal" |
+| ![Model Performance](docs/figures/dashboard_04_model_performance.png) | ![Strategy Simulator](docs/figures/dashboard_05_strategy_simulator.png) |
+| **Model Performance** — accuracy by period, error over time | **Strategy Simulator** — selling strategies recomputed from stored forecasts |
+
+All screenshots, including the Forecast Explorer before reveal and the Data and Method page, are in
+`docs/figures/`.
+
 ## Pipeline
 
 ```
