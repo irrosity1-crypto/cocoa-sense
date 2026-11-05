@@ -158,6 +158,34 @@ class LstmConfig(_Strict):
         return v
 
 
+class ConfidenceRule(_Strict):
+    """Thresholds for one confidence label."""
+
+    p_within_10: float = Field(ge=0, le=1)
+    model_spread_pct: float = Field(ge=0)
+
+
+class LearningConfig(_Strict):
+    """Learning track: monthly refit on all prices known so far (docs/decisions.md D19)."""
+
+    first_target: str
+    models: list[str]
+
+    def ts(self) -> pd.Timestamp:
+        return pd.Timestamp(self.first_target)
+
+
+class InsightsConfig(_Strict):
+    """Contents of ``configs/insights.yaml``: success criteria, confidence labels, learning."""
+
+    success_thresholds_pct: list[float]
+    min_past_errors: int = Field(ge=1)
+    volatility_window: int = Field(ge=2)
+    high: ConfidenceRule  # High if p_within_10 >= high.p and spread <= high.spread
+    low: ConfidenceRule  # Low if p_within_10 < low.p or spread > low.spread
+    learning: LearningConfig
+
+
 class ModelsConfig(_Strict):
     """Contents of ``configs/models.yaml``."""
 
@@ -324,6 +352,7 @@ class ProjectConfig:
     evaluation: EvaluationConfig
     simulation: SimulationConfig
     lstm: LstmConfig | None = None  # optional stretch model (configs/lstm.yaml)
+    insights: InsightsConfig | None = None  # optional (configs/insights.yaml)
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
@@ -349,6 +378,9 @@ def load_config(root: Path | None = None) -> ProjectConfig:
         simulation=SimulationConfig(**_read_yaml(cfg_dir / "simulation.yaml")),
         lstm=LstmConfig(**_read_yaml(cfg_dir / "lstm.yaml"))
         if (cfg_dir / "lstm.yaml").exists()
+        else None,
+        insights=InsightsConfig(**_read_yaml(cfg_dir / "insights.yaml"))
+        if (cfg_dir / "insights.yaml").exists()
         else None,
     )
 

@@ -28,3 +28,6 @@ Thumbs.db
 
 # Secrets (none are needed; never commit any)
 .env
+
+# Local record of `cocoasense update` runs
+artifacts/update_log.jsonl

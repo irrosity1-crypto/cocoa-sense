@@ -61,6 +61,8 @@ def built(tmp_path_factory: pytest.TempPathFactory) -> Path:
     pipeline.stage_freeze(cfg)
     pipeline.stage_evaluate_final(cfg)
     pipeline.stage_simulate(cfg)
+    pipeline.stage_learn(cfg)
+    pipeline.stage_insights(cfg)
     return root
 
 

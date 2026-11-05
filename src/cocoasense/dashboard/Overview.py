@@ -15,6 +15,16 @@ st.markdown(
     "exporter such as Ghana. Use the pages on the left to explore forecasts at any past date, "
     "compare models, and run the strategy simulator."
 )
+data.explainer(
+    "**How to read this app.** **Live Forecast** shows what the models expect for the coming "
+    "months, how confident to be, and a button to fetch the latest market prices. "
+    "**Scorecard** counts how often past forecasts succeeded or failed. **Predicted vs Actual** "
+    "puts every forecast next to the real price with its margin of error. **Forecast Explorer** "
+    "replays what the system knew at any past date. **Model Performance** and **Strategy "
+    "Simulator** hold the detailed statistics and the selling simulation. Two kinds of model "
+    "appear: *frozen* models trained only on data up to 2019 (the strict, fair test) and "
+    "*learning* models refitted every month on all prices known at the time."
+)
 
 monthly = data.monthly()
 if monthly is None:
@@ -101,6 +111,32 @@ else:
         "MAE vs naive below 1 means the model beat the last-price baseline. "
         "Source: artifacts/metrics/test_metrics.csv (LSTM: test_metrics_with_lstm.csv)"
     )
+
+scored = data.scored_rows()
+if scored is not None and not scored.empty:
+    st.subheader("Success rate at a glance (3-month forecasts, 2020 onward)")
+    h = 3 if 3 in set(scored["horizon"]) else int(scored["horizon"].max())
+    sub = scored[scored["horizon"] == h]
+    rate = (
+        sub.groupby(["track", "model"])["within_10pct"].mean().mul(100).rename("rate").reset_index()
+    )
+    rate["Model"] = rate["model"].map(data.label)
+    rate["Track"] = rate["track"].map({"frozen": "Frozen", "learning": "Learning"})
+    fig = go.Figure()
+    for track, colour in (("Frozen", "#7f7f7f"), ("Learning", "#1f77b4")):
+        r = rate[rate["Track"] == track]
+        fig.add_bar(
+            x=r["Model"], y=r["rate"], name=track, marker_color=colour, text=r["rate"].round(0)
+        )
+    fig.update_layout(
+        barmode="group",
+        height=340,
+        yaxis_title="% of forecasts within ±10 % of the actual price",
+        yaxis_range=[0, 100],
+        margin={"t": 20},
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption("Details, success vs fail counts and confidence checks: see the Scorecard page.")
 
 sim = data.simulation_table("strategy_metrics.csv")
 if sim is not None:

@@ -81,6 +81,26 @@ def test_full_pipeline(raw_fixture_files: ProjectConfig) -> None:
     assert (cedi.loc[cedi["period"] == "full", "n_dates"] == meta["cedi_view"]["deliveries"]).all()
     assert (p.simulation / "cedi_annual.csv").exists()
 
+    # Learning track and insights: monthly refit, confidence, scorecards, live forecasts
+    learning = pipeline.stage_learn(cfg)
+    assert set(learning["model"]) == {"naive", "arima", "xgboost"}
+    assert (learning["fit_end"] == learning["decision_date"]).all()
+    live = learning[learning["y_true"].isna()]
+    assert (live["target_date"] > pd.Timestamp("2019-12-01")).all() and len(live) == 3 * 4
+    again = pipeline.stage_learn(cfg)  # incremental: nothing new to fit, same rows
+    pd.testing.assert_frame_equal(again, learning)
+    rows = pipeline.stage_insights(cfg)
+    assert set(rows["track"]) == {"frozen", "learning"}
+    assert rows["confidence"].isin(["High", "Medium", "Low", "Not enough history"]).all()
+    card = pd.read_csv(p.metrics / "scorecard.csv")
+    assert {"within_5pct_pct", "within_10pct_pct", "direction_correct_pct"} <= set(card.columns)
+    for name in ("confidence_check.csv", "probability_calibration.csv", "learning_vs_frozen.csv"):
+        assert (p.metrics / name).exists()
+    live_table = pd.read_csv(p.metrics / "live_forecasts.csv")
+    assert live_table["explanation"].str.contains("expects").all()
+    rec = pipeline.stage_update(cfg, refresh=False)
+    assert rec["data_through"] == "2019-12" == rec["data_through_before"]
+
     pipeline.stage_report(cfg)
     assert (p.figures / "test_actual_vs_pred_h3.png").exists()
     assert (p.figures / "simulation_strategy_outcomes.png").exists()

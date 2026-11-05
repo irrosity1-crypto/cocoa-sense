@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from cocoasense.dashboard import data
+from cocoasense.evaluation.insights import brier, explain
 
 data.page_header("Forecast Explorer")
 
@@ -102,6 +103,32 @@ if "Error %" in shown:
 st.dataframe(shown.style.format(fmt), hide_index=True, use_container_width=True)
 if not reveal:
     st.caption("Actual prices after the decision month are hidden until you reveal them.")
+
+rows = data.insights_rows()
+if rows is not None:
+    st.subheader("In plain words")
+    data.explainer(
+        "How far could you have trusted these forecasts on the day? The confidence below uses "
+        "only results known at the end of the chosen month, never what happened afterwards."
+    )
+    scored_all = data.scored_rows()
+    reliable = scored_all is None or brier(scored_all[scored_all["track"] == "frozen"]) < 0.25
+    said = rows[(rows["track"] == "frozen") & (rows["decision_date"] == t)]
+    said = said[said["model"].isin(models)].sort_values(["horizon", "model"])
+    for _, r in said.iterrows():
+        badge = data.CONFIDENCE_COLOURS[r["confidence"]]
+        st.markdown(
+            f"<span style='background:{badge};color:white;padding:2px 8px;border-radius:8px;"
+            f"font-size:0.8em'>{r['confidence']}</span> "
+            f"**{data.label(str(r['model']))}, {int(r['horizon'])} month(s) ahead.** "
+            + explain(r, data.label(str(r["model"]))).replace("$", r"\$"),
+            unsafe_allow_html=True,
+        )
+    if not reliable:
+        st.caption(
+            "Measured afterwards over 2020–2026, the up/down chances quoted above were no better "
+            "than a coin flip (Scorecard page), so the direction should not be relied on."
+        )
 st.caption(
     "Source: artifacts/forecasts/test_predictions.parquet and lstm_test_predictions.parquet "
     "(models frozen at Dec 2019)."

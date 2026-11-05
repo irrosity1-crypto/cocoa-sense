@@ -4,13 +4,20 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
 import pandas as pd
 import yaml
 
-from cocoasense.config import ProjectConfig, load_frozen, load_frozen_lstm
+from cocoasense.config import (
+    FeatureConfig,
+    InsightsConfig,
+    ProjectConfig,
+    load_frozen,
+    load_frozen_lstm,
+)
 from cocoasense.evaluation import figures
 from cocoasense.evaluation.experiments import (
     FX_START,
@@ -21,6 +28,22 @@ from cocoasense.evaluation.experiments import (
     score_validation,
     validation_window,
 )
+from cocoasense.evaluation.insights import (
+    brier,
+    confidence_check,
+    ex_ante_confidence,
+    explain,
+    outcomes,
+    probability_calibration,
+    scorecard,
+)
+from cocoasense.evaluation.learning import (
+    LEARNING_COLUMNS,
+    fill_actuals,
+    fixed_grid,
+    merge_predictions,
+    refit_walk_forward,
+)
 from cocoasense.evaluation.metrics import assign_periods, score
 from cocoasense.evaluation.reports import leaderboard, write_table
 from cocoasense.evaluation.walk_forward import Window, forecast_window, log_final_run
@@ -28,6 +51,7 @@ from cocoasense.features.build import build_features, build_targets
 from cocoasense.ingestion.download import download
 from cocoasense.ingestion.manifest import ManifestEntry, sha256_of
 from cocoasense.ingestion.sources import Downloader, ingest_all
+from cocoasense.models.base import Forecaster
 from cocoasense.models.registry import build_model
 from cocoasense.simulation.currency import annual_cedi, to_cedis
 from cocoasense.simulation.engine import scenario_delivery, simulate
@@ -703,3 +727,228 @@ def stage_all(cfg: ProjectConfig, refresh: bool = False) -> None:
             stage_lstm_evaluate_final(cfg)
     stage_simulate(cfg)
     stage_report(cfg)
+
+
+# --------------------------------------------- learning track, insights, update
+
+LEARNING = "learning_predictions.parquet"
+COIN_FLIP_BRIER = 0.25
+INSIGHTS = "insights_predictions.parquet"
+ROW_COLUMNS = [
+    "track",
+    "model",
+    "decision_date",
+    "target_date",
+    "horizon",
+    "last_obs",
+    "y_true",
+    "y_pred",
+    "lower",
+    "upper",
+]
+
+
+def _insights_cfg(cfg: ProjectConfig) -> InsightsConfig:
+    if cfg.insights is None:
+        raise MissingArtifactError("configs/insights.yaml not found")
+    return cfg.insights
+
+
+def learning_models(cfg: ProjectConfig) -> dict[str, Callable[[], Forecaster]]:
+    """Model factories for the learning track.
+
+    Each uses the frozen training start, features and hyperparameters (from the final run's
+    ``test_model_info.json``, tuned on pre-2020 data) and is refitted at every decision month.
+    """
+    p = cfg.paths
+    _require(p.frozen, "freeze")
+    info_path = p.metrics / "test_model_info.json"
+    _require(info_path, "evaluate --final")
+    frozen = load_frozen(p)["models"]
+    infos = json.loads(info_path.read_text(encoding="utf-8"))
+    factories: dict[str, Callable[[], Forecaster]] = {}
+    for name in _insights_cfg(cfg).learning.models:
+        spec = frozen[name]
+        feats = features_for(cfg, bool(spec["use_fx"]))
+        start = pd.Timestamp(spec["train_start"])
+        best = (infos.get(name) or {}).get("best_params")
+
+        def make(
+            name: str = name,
+            start: pd.Timestamp = start,
+            feats: FeatureConfig = feats,
+            best: dict[str, dict[str, Any]] | None = best,
+        ) -> Forecaster:
+            model = build_model(name, cfg, start, feats)
+            if best:
+                model.grid = fixed_grid(best)  # type: ignore[attr-defined]
+            return model
+
+        factories[name] = make
+    return factories
+
+
+def stage_learn(cfg: ProjectConfig) -> pd.DataFrame:
+    """Learning track: refit every month on all prices known so far and forecast ahead.
+
+    Incremental: stored rows are kept (a live forecast keeps what was forecast at the time) and
+    only new (decision month, horizon) pairs are fitted. Actual prices are filled in as they
+    are published.
+    """
+    p = cfg.paths
+    ins = _insights_cfg(cfg)
+    monthly = load_monthly(cfg)
+    path = p.forecasts / LEARNING
+    old = pd.read_parquet(path) if path.exists() else None
+    new_parts = []
+    for name, make in learning_models(cfg).items():
+        done: set[tuple[pd.Timestamp, int]] = set()
+        if old is not None:
+            mine = old[old["model"] == name]
+            done = set(zip(mine["decision_date"], mine["horizon"], strict=True))
+        new_parts.append(
+            refit_walk_forward(make, monthly, ins.learning.ts(), cfg.features.horizons, skip=done)
+        )
+    new_parts = [part for part in new_parts if not part.empty]
+    new = (
+        pd.concat(new_parts, ignore_index=True)
+        if new_parts
+        else pd.DataFrame(columns=LEARNING_COLUMNS)
+    )
+    merged = merge_predictions(old, new)
+    merged = fill_actuals(merged, monthly["price_usd_t"])
+    p.forecasts.mkdir(parents=True, exist_ok=True)
+    merged.to_parquet(path)
+    logger.info("learning track: %d rows (%d live)", len(merged), merged["y_true"].isna().sum())
+    return merged
+
+
+def _frozen_rows(cfg: ProjectConfig) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Frozen-track test rows (main models + LSTM) and their validation-period error seed."""
+    p = cfg.paths
+    test = test_predictions_with_lstm(cfg).assign(track="frozen")
+    seed_parts = []
+    val_path = p.forecasts / "validation_predictions.parquet"
+    if val_path.exists():
+        val = pd.read_parquet(val_path)
+        val = val[val["experiment"] == "train_start"]
+        labels = {"naive": "naive"} | {
+            m["validation_label"]: k
+            for k, m in load_frozen(p)["models"].items()
+            if "validation_label" in m
+        }
+        val = val[val["model"].isin(labels)]
+        seed_parts.append(val.assign(model=val["model"].map(labels)))
+    lstm_val = p.forecasts / LSTM_VALIDATION
+    if lstm_val.exists() and p.frozen_lstm.exists():
+        label = load_frozen_lstm(p)["model"]["validation_label"]
+        lv = pd.read_parquet(lstm_val)
+        seed_parts.append(lv[lv["model"] == label].assign(model="lstm"))
+    seed = pd.concat(seed_parts, ignore_index=True) if seed_parts else test.iloc[:0]
+    return test[ROW_COLUMNS], seed.assign(track="frozen")[ROW_COLUMNS]
+
+
+def stage_insights(cfg: ProjectConfig) -> pd.DataFrame:
+    """Confidence for every forecast, success scorecards, calibration and live forecasts."""
+    p = cfg.paths
+    ins = _insights_cfg(cfg)
+    price = load_monthly(cfg)["price_usd_t"]
+    thresholds = ins.success_thresholds_pct
+    test_start = cfg.evaluation.ts("test_start")
+
+    frozen, seed = _frozen_rows(cfg)
+    parts = [ex_ante_confidence(frozen, pd.concat([seed, frozen]), price, ins)]
+    learn_path = p.forecasts / LEARNING
+    if learn_path.exists():
+        learning = fill_actuals(pd.read_parquet(learn_path), price)[ROW_COLUMNS]
+        parts.append(ex_ante_confidence(learning, learning, price, ins))
+    rows = pd.concat(parts, ignore_index=True)
+    rows = rows[rows["target_date"] >= test_start].reset_index(drop=True)
+    rows.to_parquet(p.forecasts / INSIGHTS)
+
+    scored = outcomes(rows, thresholds)
+    long = assign_periods(scored, cfg.evaluation.period_bounds())
+    write_table(
+        scorecard(long, ["track", "period", "horizon", "model"], thresholds),
+        p.metrics / "scorecard.csv",
+        "Success scorecard (test targets from 2020): % of forecasts within 5 % / 10 % of the "
+        "actual price, direction correct, actual inside the 80 % range",
+    )
+    write_table(
+        pd.concat(
+            [
+                confidence_check(g).assign(track=t, horizon=h)
+                for (t, h), g in scored.groupby(["track", "horizon"])
+            ],
+            ignore_index=True,
+        ),
+        p.metrics / "confidence_check.csv",
+        "Confidence labels vs what happened: actual hit rates per label (labels set ex ante)",
+    )
+    write_table(
+        pd.concat(
+            [
+                probability_calibration(g).assign(track=t, horizon=h, brier=brier(g))
+                for (t, h), g in scored.groupby(["track", "horizon"])
+            ],
+            ignore_index=True,
+        ),
+        p.metrics / "probability_calibration.csv",
+        "Chance of a rise (p_up) vs how often the price rose; Brier 0 = perfect, 0.25 = coin flip",
+    )
+    if learn_path.exists():
+        both = scorecard(long, ["period", "horizon", "model", "track"], thresholds)
+        wide = both.pivot_table(
+            index=["period", "horizon", "model"],
+            columns="track",
+            values=["mape", "within_10pct_pct", "n"],
+        )
+        wide.columns = [f"{v}_{t}" for v, t in wide.columns]
+        wide = wide.dropna(subset=["mape_frozen", "mape_learning"]).reset_index()
+        wide["mape_change"] = wide["mape_learning"] - wide["mape_frozen"]
+        write_table(
+            wide,
+            p.metrics / "learning_vs_frozen.csv",
+            "Learning track (monthly refit) vs frozen track: MAPE and % within 10 %, same months",
+        )
+        live = rows[(rows["track"] == "learning") & rows["y_true"].isna()].copy()
+        reliable = bool(brier(scored[scored["track"] == "learning"]) < COIN_FLIP_BRIER)
+        live["explanation"] = [
+            explain(r, model_label(str(r["model"])), reliable) for _, r in live.iterrows()
+        ]
+        write_table(
+            live.drop(columns=["y_true"]),
+            p.metrics / "live_forecasts.csv",
+            f"Live forecasts from data through {price.index.max():%b %Y} (learning track)",
+        )
+    return rows
+
+
+def model_label(name: str) -> str:
+    """Display name of a model."""
+    return {
+        "naive": "Naive (last price)",
+        "arima": "ARIMA",
+        "random_forest": "Random Forest",
+        "xgboost": "XGBoost",
+        "lstm": "LSTM",
+    }.get(name, name)
+
+
+def stage_update(cfg: ProjectConfig, refresh: bool = True) -> dict[str, Any]:
+    """Fetch the latest public prices, score earlier forecasts, refit and forecast ahead."""
+    interim = cfg.paths.interim / "monthly.parquet"
+    before = load_monthly(cfg).index.max() if interim.exists() else None
+    stage_ingest(cfg, refresh=refresh)
+    monthly = stage_validate(cfg)
+    stage_learn(cfg)
+    stage_insights(cfg)
+    record = {
+        "timestamp": datetime.now(UTC).replace(microsecond=0).isoformat(),
+        "refreshed": refresh,
+        "data_through_before": None if before is None else f"{before:%Y-%m}",
+        "data_through": f"{monthly.index.max():%Y-%m}",
+    }
+    with (cfg.paths.artifacts / "update_log.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record) + "\n")
+    return record

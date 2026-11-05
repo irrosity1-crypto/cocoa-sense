@@ -1,0 +1,25 @@
+# Success criteria, confidence labels and the learning track (docs/decisions.md D19).
+# These values were fixed BEFORE the learning-track results or confidence labels were computed.
+
+# A forecast "succeeds" at X % if |actual - forecast| / actual <= X %.
+success_thresholds_pct: [5, 10]
+
+# Confidence for a forecast is estimated from that model's own earlier errors at the same horizon
+# (only errors whose target month was already known at the decision date), rescaled by how
+# volatile the market is now versus when each error was made.
+min_past_errors: 12          # fewer than this -> "Not enough history"
+volatility_window: 12        # months of log returns for the volatility estimate
+
+# Labels (p_within_10 = estimated probability the actual lands within +/-10 % of the forecast;
+# model_spread_pct = (highest - lowest forecast of the non-naive models) / current price).
+high:                        # High when BOTH hold
+  p_within_10: 0.70
+  model_spread_pct: 5.0
+low:                         # Low when EITHER holds (p below, or spread above)
+  p_within_10: 0.50
+  model_spread_pct: 15.0
+# Anything else is Medium.
+
+learning:
+  first_target: "2018-01"    # 2018-2019 rows only seed the error history; scoring starts 2020
+  models: [naive, arima, random_forest, xgboost]   # the LSTM is too slow to refit monthly
