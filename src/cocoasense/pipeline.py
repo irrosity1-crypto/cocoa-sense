@@ -4,26 +4,29 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import UTC, datetime
 from typing import Any
 
 import pandas as pd
 import yaml
 
-from cocoasense.config import ProjectConfig, load_frozen
+from cocoasense.config import ProjectConfig, load_frozen, load_frozen_lstm
 from cocoasense.evaluation import figures
 from cocoasense.evaluation.experiments import (
     FX_START,
     choose_frozen,
+    config_hashes,
     features_for,
     run_validation,
     score_validation,
+    validation_window,
 )
 from cocoasense.evaluation.metrics import assign_periods, score
 from cocoasense.evaluation.reports import leaderboard, write_table
 from cocoasense.evaluation.walk_forward import Window, forecast_window, log_final_run
 from cocoasense.features.build import build_features, build_targets
 from cocoasense.ingestion.download import download
-from cocoasense.ingestion.manifest import ManifestEntry
+from cocoasense.ingestion.manifest import ManifestEntry, sha256_of
 from cocoasense.ingestion.sources import Downloader, ingest_all
 from cocoasense.models.registry import build_model
 from cocoasense.simulation.engine import scenario_delivery, simulate
@@ -298,6 +301,168 @@ def fx_pairs_table(fx: pd.DataFrame, period: str) -> pd.DataFrame:
     return pd.concat(parts, ignore_index=True)
 
 
+# ------------------------------------------------------------ LSTM stretch model
+#
+# The LSTM was added after the main final run (docs/decisions.md D16). It follows the same
+# protocol in its own files so that the original frozen configuration and test results stay
+# exactly as they were: develop on validation -> write configs/frozen_lstm.yaml and commit it
+# -> one logged final run on the test period. Nothing is refitted on data after Dec 2019.
+
+LSTM_VALIDATION = "lstm_validation_predictions.parquet"
+LSTM_TEST = "lstm_test_predictions.parquet"
+
+
+def stage_lstm_train(cfg: ProjectConfig) -> pd.DataFrame:
+    """Fit the LSTM on targets <= train_end for each training-start candidate; score validation."""
+    _require(cfg.paths.forecasts / "validation_predictions.parquet", "train")
+    monthly = load_monthly(cfg)
+    window = validation_window(cfg)
+    surge = cfg.evaluation.ts("surge_start")
+    preds, infos = [], {}
+    for start in cfg.evaluation.train_start_candidates:
+        ts = pd.Timestamp(start)
+        label = f"lstm@{ts:%Y}"
+        logger.info("validation: fitting %s", label)
+        model = build_model("lstm", cfg, ts, cfg.features, label=label)
+        pr, info = forecast_window(model, monthly, window, cfg.features.horizons, surge)
+        preds.append(pr.assign(experiment="lstm", base_model="lstm", use_fx=False, train_start=ts))
+        infos[label] = info
+    out = pd.concat(preds, ignore_index=True)
+    out.to_parquet(cfg.paths.forecasts / LSTM_VALIDATION)
+    (cfg.paths.metrics / "lstm_validation_model_info.json").write_text(
+        json.dumps(infos, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+    stage_lstm_score_validation(cfg)
+    return out
+
+
+def stage_lstm_score_validation(cfg: ProjectConfig) -> pd.DataFrame:
+    """Validation metrics of every LSTM candidate against the same naive forecasts."""
+    p = cfg.paths
+    _require(p.forecasts / LSTM_VALIDATION, "lstm train")
+    main = pd.read_parquet(p.forecasts / "validation_predictions.parquet")
+    lstm = pd.read_parquet(p.forecasts / LSTM_VALIDATION)
+    table = score_validation(pd.concat([main[main["model"] == "naive"], lstm], ignore_index=True))
+    write_table(
+        table,
+        p.metrics / "lstm_validation_metrics.csv",
+        "LSTM validation metrics (targets 2016–2019, fitted on targets up to 2015-12)",
+    )
+    return table
+
+
+def stage_lstm_freeze(cfg: ProjectConfig, overwrite: bool = False) -> dict[str, Any]:
+    """Choose the LSTM training start from validation MAE and write configs/frozen_lstm.yaml."""
+    p = cfg.paths
+    if p.frozen_lstm.exists() and not overwrite:
+        raise FileExistsError(
+            f"{p.frozen_lstm} already exists; pass --overwrite only if no final run has used it."
+        )
+    _require(p.frozen, "freeze")
+    table = stage_lstm_score_validation(cfg)
+    lstm = pd.read_parquet(p.forecasts / LSTM_VALIDATION)
+    mean_mae = (
+        table[table["model"].str.startswith("lstm@")].groupby("model")["mae"].mean().sort_index()
+    )
+    best = str(mean_mae.idxmin())
+    start = pd.Timestamp(lstm.loc[lstm["model"] == best, "train_start"].iloc[0])
+    frozen = {
+        "created_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
+        "note": (
+            "LSTM stretch model, added after the main final run (docs/decisions.md D16). "
+            "Training start chosen on the validation period (targets 2016-01..2019-12) with "
+            "models trained on targets up to 2015-12, before any LSTM test-period evaluation. "
+            "The final model is refitted on targets up to final_train_end and then frozen."
+        ),
+        "final_train_end": cfg.evaluation.final_train_end,
+        "model": {
+            "train_start": f"{start:%Y-%m}",
+            "use_fx": False,
+            "validation_label": best,
+            "validation_mean_mae": round(float(mean_mae.min()), 2),
+            "candidates_mean_mae": {k: round(float(v), 2) for k, v in mean_mae.items()},
+        },
+        "lstm_config_sha256": sha256_of(p.configs / "lstm.yaml"),
+        "main_frozen_sha256": sha256_of(p.frozen),
+        "config_sha256": config_hashes(cfg),
+    }
+    with p.frozen_lstm.open("w", encoding="utf-8") as fh:
+        fh.write("# Frozen LSTM configuration. Generated by `cocoasense lstm freeze` from\n")
+        fh.write(
+            "# validation results only. Commit it BEFORE `cocoasense lstm evaluate --final`.\n"
+        )
+        yaml.safe_dump(frozen, fh, sort_keys=False)
+    logger.info("wrote %s", p.frozen_lstm)
+    return frozen
+
+
+def stage_lstm_evaluate_final(cfg: ProjectConfig) -> pd.DataFrame:
+    """Refit the frozen LSTM on targets <= Dec 2019, freeze it and forecast the test period."""
+    p = cfg.paths
+    _require(p.frozen_lstm, "lstm freeze")
+    _require(p.forecasts / "test_predictions.parquet", "evaluate --final")
+    spec = load_frozen_lstm(p)["model"]
+    monthly = load_monthly(cfg)
+    window = test_window(cfg, monthly.index.max())
+    model = build_model("lstm", cfg, pd.Timestamp(spec["train_start"]), cfg.features)
+    logger.info("final: fitting lstm (train_start %s)", spec["train_start"])
+    preds, info = forecast_window(
+        model, monthly, window, cfg.features.horizons, cfg.evaluation.ts("surge_start"), final=True
+    )
+    preds = preds.assign(experiment="main")
+    preds.to_parquet(p.forecasts / LSTM_TEST)
+    (p.metrics / "lstm_test_model_info.json").write_text(
+        json.dumps(info, indent=2, default=str) + "\n", encoding="utf-8"
+    )
+    table = stage_lstm_score_test(cfg)
+    log_final_run(
+        p.artifacts / "final_runs.log",
+        p.root,
+        p.frozen_lstm,
+        {
+            "run": "lstm_addendum",
+            "test_window": [str(window.target_start.date()), str(window.target_end.date())],
+            "n_predictions": len(preds),
+            "headline_mae": table[(table["period"] == "full") & (table["model"] == "lstm")]
+            .set_index(["model", "horizon"])["mae"]
+            .round(2)
+            .reset_index()
+            .to_dict(orient="records"),
+        },
+    )
+    return preds
+
+
+def stage_lstm_score_test(cfg: ProjectConfig) -> pd.DataFrame:
+    """Score the LSTM next to the four original models on identical test months."""
+    p = cfg.paths
+    _require(p.forecasts / LSTM_TEST, "lstm evaluate --final")
+    periods = cfg.evaluation.period_bounds()
+    table = score(assign_periods(test_predictions_with_lstm(cfg), periods))
+    write_table(table, p.metrics / "test_metrics_with_lstm.csv")
+    for h in sorted(table["horizon"].unique()):
+        for period in ("full", *periods):
+            lb = leaderboard(table, "test", period, int(h))
+            if not lb.empty:
+                write_table(
+                    lb,
+                    p.metrics / f"test_leaderboard_with_lstm_{period}_h{h}.csv",
+                    f"Test leaderboard with the LSTM, {period}, {h}-month horizon",
+                )
+    return table
+
+
+def test_predictions_with_lstm(cfg: ProjectConfig) -> pd.DataFrame:
+    """Main test forecasts of the original models plus the LSTM (if it has been run)."""
+    p = cfg.paths
+    main = pd.read_parquet(p.forecasts / "test_predictions.parquet")
+    main = main[main["experiment"] == "main"]
+    lstm_path = p.forecasts / LSTM_TEST
+    if not lstm_path.exists():
+        return main
+    return pd.concat([main, pd.read_parquet(lstm_path)], ignore_index=True)
+
+
 # -------------------------------------------------------------------- simulation
 
 
@@ -317,8 +482,7 @@ def stage_simulate(cfg: ProjectConfig) -> pd.DataFrame:
     _require(p.forecasts / "test_predictions.parquet", "evaluate --final")
     frozen = load_frozen(p)["simulation"]
     monthly = load_monthly(cfg)
-    preds = pd.read_parquet(p.forecasts / "test_predictions.parquet")
-    preds = preds[preds["experiment"] == "main"]
+    preds = test_predictions_with_lstm(cfg)  # the LSTM appears only in sensitivity.csv
     provider = _provider(cfg, monthly)
     sim = cfg.simulation
     periods = cfg.evaluation.period_bounds()
@@ -442,6 +606,15 @@ def stage_report(cfg: ProjectConfig) -> None:
             p.metrics / "test_largest_misses.csv",
             "Largest absolute percentage errors in the test period",
         )
+    if (p.forecasts / LSTM_TEST).exists():
+        tl = test_predictions_with_lstm(cfg)
+        for h in sorted(tl["horizon"].unique()):
+            figures.actual_vs_predicted(
+                tl,
+                int(h),
+                f"Test forecasts with the LSTM, {h}-month horizon (frozen at Dec 2019)",
+                f / f"test_actual_vs_pred_with_lstm_h{h}.png",
+            )
     sim = p.simulation / "strategy_results.parquet"
     if sim.exists():
         figures.strategy_outcomes(pd.read_parquet(sim), f / "simulation_strategy_outcomes.png")
@@ -479,5 +652,9 @@ def stage_all(cfg: ProjectConfig, refresh: bool = False) -> None:
         stage_report(cfg)
         return
     stage_evaluate_final(cfg)
+    if cfg.lstm is not None:
+        stage_lstm_train(cfg)
+        if cfg.paths.frozen_lstm.exists():
+            stage_lstm_evaluate_final(cfg)
     stage_simulate(cfg)
     stage_report(cfg)

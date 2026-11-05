@@ -112,6 +112,13 @@ SMALL_OVERRIDES = {
         "train_start_candidates": ["1982-01", "1991-01"],
     },
     "simulation.yaml": {"a_grid": [0.0, 0.5, 1.0]},
+    "lstm.yaml": {
+        "input_sets": [["ret_1m"], ["ret_1m", "log_price"]],
+        "lookback": [6],
+        "hidden_size": [4],
+        "epochs": 15,
+        "n_seeds": 1,
+    },
 }
 
 

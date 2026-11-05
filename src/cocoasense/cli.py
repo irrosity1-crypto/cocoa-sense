@@ -100,6 +100,48 @@ def report(root: Path | None = RootOpt) -> None:
     typer.echo("figures written to artifacts/figures")
 
 
+lstm_app = typer.Typer(
+    help="LSTM stretch model: its own validation -> freeze -> final cycle (docs/decisions.md D16).",
+    no_args_is_help=True,
+)
+app.add_typer(lstm_app, name="lstm")
+
+
+@lstm_app.command("train")
+def lstm_train(root: Path | None = RootOpt) -> None:
+    """Fit the LSTM on data to 2015 and forecast the 2016–2019 validation period."""
+    pipeline.stage_lstm_train(_cfg(root))
+    typer.echo("LSTM validation predictions and metrics written to artifacts/")
+
+
+@lstm_app.command("freeze")
+def lstm_freeze(
+    overwrite: bool = typer.Option(False, help="Replace an existing frozen_lstm.yaml."),
+    root: Path | None = RootOpt,
+) -> None:
+    """Choose the LSTM training start from validation results; write configs/frozen_lstm.yaml."""
+    frozen = pipeline.stage_lstm_freeze(_cfg(root), overwrite=overwrite)
+    typer.echo(
+        f"frozen LSTM: train_start={frozen['model']['train_start']}. "
+        "Commit configs/frozen_lstm.yaml before `cocoasense lstm evaluate --final`."
+    )
+
+
+@lstm_app.command("evaluate")
+def lstm_evaluate(
+    final: bool = typer.Option(False, "--final", help="Score the held-out test period (once)."),
+    root: Path | None = RootOpt,
+) -> None:
+    """Score LSTM validation predictions, or with --final run the frozen LSTM on the test period."""
+    cfg = _cfg(root)
+    if final:
+        pipeline.stage_lstm_evaluate_final(cfg)
+        typer.echo("LSTM test predictions written; run logged in artifacts/final_runs.log")
+    else:
+        pipeline.stage_lstm_score_validation(cfg)
+        typer.echo("LSTM validation metrics written (test period untouched)")
+
+
 @app.command("all")
 def run_all(
     refresh: bool = typer.Option(False, help="Re-download raw data first."),

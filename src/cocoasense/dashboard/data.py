@@ -28,6 +28,7 @@ MODEL_LABELS = {
     "arima": "ARIMA",
     "random_forest": "Random Forest",
     "xgboost": "XGBoost",
+    "lstm": "LSTM",
 }
 
 
@@ -37,6 +38,7 @@ MODEL_COLOURS = {
     "ARIMA": "#1f77b4",
     "Random Forest": "#2ca02c",
     "XGBoost": "#d62728",
+    "LSTM": "#8c564b",
 }
 STRATEGY_COLOURS = {
     "Sell forward (w = 1)": "#1f77b4",
@@ -132,9 +134,19 @@ def monthly() -> pd.DataFrame | None:
 
 
 def test_predictions() -> pd.DataFrame | None:
-    """Frozen-model forecasts for the test period (main models only)."""
+    """Frozen-model forecasts for the test period (main models, plus the LSTM if run)."""
     df = _load(cfg().paths.forecasts / "test_predictions.parquet")
-    return None if df is None else df[df["experiment"] == "main"]
+    if df is None:
+        return None
+    df = df[df["experiment"] == "main"]
+    lstm = _load(cfg().paths.forecasts / "lstm_test_predictions.parquet")
+    return df if lstm is None else pd.concat([df, lstm], ignore_index=True)
+
+
+def test_metrics() -> pd.DataFrame | None:
+    """Test-period metrics, including the LSTM when its final run exists."""
+    with_lstm = metrics("test_metrics_with_lstm.csv")
+    return with_lstm if with_lstm is not None else metrics("test_metrics.csv")
 
 
 def validation_predictions() -> pd.DataFrame | None:

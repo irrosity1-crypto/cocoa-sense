@@ -9,7 +9,7 @@ from cocoasense.dashboard import data
 
 data.page_header("Model Performance")
 
-table = data.metrics("test_metrics.csv")
+table = data.test_metrics()
 preds = data.test_predictions()
 if table is None or preds is None:
     data.missing("Test-period metrics", "evaluate --final")

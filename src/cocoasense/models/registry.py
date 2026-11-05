@@ -12,7 +12,7 @@ from cocoasense.models.base import Forecaster
 from cocoasense.models.naive import NaiveForecaster
 from cocoasense.models.tree import TreeForecaster, random_forest_factory, xgboost_factory
 
-MODEL_NAMES = ("naive", "arima", "random_forest", "xgboost")
+MODEL_NAMES = ("naive", "arima", "random_forest", "xgboost", "lstm")
 
 
 def build_model(
@@ -43,6 +43,21 @@ def build_model(
             name,
             factory,
             grid_cfg.grid,
+            feats,
+            feats.horizons,
+            start,
+            level,
+            cfg.models.cv_splits,
+            cfg.models.seed,
+        )
+    elif name == "lstm":
+        if cfg.lstm is None:
+            raise FileNotFoundError("configs/lstm.yaml is required for the LSTM model")
+        from cocoasense.models.lstm import LstmForecaster  # torch is imported only when needed
+
+        model = LstmForecaster(
+            name,
+            cfg.lstm,
             feats,
             feats.horizons,
             start,

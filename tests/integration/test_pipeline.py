@@ -50,14 +50,36 @@ def test_full_pipeline(raw_fixture_files: ProjectConfig) -> None:
     metrics = pd.read_csv(p.metrics / "test_metrics.csv")
     assert {"full", "pre_surge", "surge", "post_peak"} <= set(metrics["period"])
 
+    # LSTM stretch model: own validation -> freeze -> final cycle, same cut-off
+    with pytest.raises(pipeline.MissingArtifactError):
+        pipeline.stage_lstm_evaluate_final(cfg)  # no frozen LSTM config yet
+    lstm_val = pipeline.stage_lstm_train(cfg)
+    assert set(lstm_val["model"]) == {"lstm@1982", "lstm@1991"}
+    assert lstm_val["target_date"].max() <= pd.Timestamp("2013-12-01")
+    fl = pipeline.stage_lstm_freeze(cfg)
+    assert fl["model"]["validation_label"] in {"lstm@1982", "lstm@1991"}
+    assert fl["main_frozen_sha256"]
+    with pytest.raises(FileExistsError):
+        pipeline.stage_lstm_freeze(cfg)
+    lstm_test = pipeline.stage_lstm_evaluate_final(cfg)
+    assert lstm_test["target_date"].min() == pd.Timestamp("2014-01-01")
+    log = (p.artifacts / "final_runs.log").read_text(encoding="utf-8").strip().splitlines()
+    assert len(log) == 2 and json.loads(log[1])["run"] == "lstm_addendum"
+    with_lstm = pd.read_csv(p.metrics / "test_metrics_with_lstm.csv")
+    assert set(with_lstm["model"]) == {"naive", "arima", "random_forest", "xgboost", "lstm"}
+    assert pd.read_csv(p.metrics / "test_metrics.csv").equals(metrics)  # originals untouched
+
     results = pipeline.stage_simulate(cfg)
     assert set(results["strategy"]) == {"sell_forward", "wait", "fixed_50_50", "forecast_driven"}
+    sens = pd.read_csv(p.simulation / "sensitivity.csv")
+    assert "lstm" in set(sens.loc[sens["parameter"] == "driver_model", "value"])
     for name in ("strategy_metrics.csv", "stress_scenarios.csv", "sensitivity.csv"):
         assert (p.simulation / name).exists()
 
     pipeline.stage_report(cfg)
     assert (p.figures / "test_actual_vs_pred_h3.png").exists()
     assert (p.figures / "simulation_strategy_outcomes.png").exists()
+    assert (p.figures / "test_actual_vs_pred_with_lstm_h1.png").exists()
     misses = pd.read_csv(p.metrics / "test_largest_misses.csv")
     assert set(misses["horizon"]) == {1, 3} and len(misses) == 20
     assert (
@@ -74,6 +96,9 @@ def test_cli_help_and_locked_final(project: ProjectConfig) -> None:
     res = runner.invoke(app, ["evaluate", "--root", str(project.paths.root)])
     assert res.exit_code != 0  # no validation predictions yet
     assert isinstance(res.exception, pipeline.MissingArtifactError)
+    for cmd in (["lstm", "evaluate"], ["lstm", "evaluate", "--final"], ["lstm", "train"]):
+        res = runner.invoke(app, [*cmd, "--root", str(project.paths.root)])
+        assert isinstance(res.exception, pipeline.MissingArtifactError), cmd
 
 
 def test_cli_stages_on_fixture(raw_fixture_files: ProjectConfig) -> None:
