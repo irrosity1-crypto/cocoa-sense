@@ -291,6 +291,29 @@ Forest and XGBoost is US$5,677/t for November 2026 (−1.3 %) and US$5,611/t for
 peak is far above the levels at which past errors were small. These forecasts are stored as made
 and will be scored when the World Bank publishes those months (`cocoasense update`).
 
+## 11. Improvement addendum (decision D23)
+
+Three candidate improvements were pre-registered (`configs/improve.yaml`), chosen on 2016-2019
+validation forecasts only, frozen (`configs/frozen_improve.yaml`) and then tested once. Sources:
+`artifacts/metrics/improve_validation*.md`, `improve_test_metrics.md`, `improve_test_simulation.md`.
+
+| Candidate | Validation decision | Test result |
+|---|---|---|
+| Equal-weight ensemble (ARIMA, RF, XGBoost) | Not adopted: MAE 91.6 / 195.1 vs best single 91.1 (RF, 1 m) / 190.1 (XGBoost, 3 m) | Not tested |
+| Volatility-aware ranges | Adopted for XGBoost only | 80 % range coverage 72 % → **84 %** (1 m) and 67 % → **78 %** (3 m); after the peak 33 % → 67 % (3 m) |
+| Volatility guard on the selling rule | Adopted (never triggered in validation) | Triggered in 7 months; forecast-driven revenue 4,171 → **4,188** US$/t (+0.4 %), still below Fixed 50/50 (4,204) |
+
+- **Volatility-aware ranges** fix the main weakness found in section 3: coverage close to the
+  nominal 80 % across the whole test period. The price is honesty about uncertainty: the average
+  range width rises from 15 % to 25 % of the price at 1 month and from 31 % to 49 % at 3 months
+  (84 % after the peak). Point forecasts, and therefore MAPE, are unchanged.
+- **The guard** halves the forecast-driven rule's shortfall against 50/50 but does not remove it.
+  It supports the practical answer to sub-question 4: when volatility exceeds anything seen in
+  training, do not act on the forecast.
+- **The ensemble** was rejected before testing, so its test performance was never examined.
+- The original results in sections 2-5 are unchanged. Because these ideas were proposed after
+  those results were known, the addendum is not a fully blind test (D23).
+
 ## Figures
 
 `artifacts/figures/`: `eda_price_history.png`, `eda_returns_volatility.png`,

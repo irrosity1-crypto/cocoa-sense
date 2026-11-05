@@ -41,3 +41,6 @@
     outcomes), and the up/down probability had no skill. Monthly refitting did not improve
     accuracy. "Live" prices are the latest published monthly averages, not daily or intraday
     quotes; no free, openly licensed daily source exists (decision D20).
+11. **Improvement addendum (D23).** The ensemble, volatility-aware ranges and guard were proposed
+    after the original test results were known, so their test is not fully blind, even though
+    they were pre-registered and chosen on validation data only.
