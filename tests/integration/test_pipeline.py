@@ -69,6 +69,18 @@ def test_full_pipeline(raw_fixture_files: ProjectConfig) -> None:
     assert set(with_lstm["model"]) == {"naive", "arima", "random_forest", "xgboost", "lstm"}
     assert pd.read_csv(p.metrics / "test_metrics.csv").equals(metrics)  # originals untouched
 
+    # Improvement addendum: validate -> freeze -> one logged final run (D23)
+    decisions = pipeline.stage_improve_validate(cfg)
+    assert set(decisions) == {"ensemble", "volatility_scaled_intervals", "volatility_guard"}
+    pipeline.stage_improve_freeze(cfg)
+    with pytest.raises(FileExistsError):
+        pipeline.stage_improve_freeze(cfg)
+    improved = pipeline.stage_improve_final(cfg)
+    assert {"naive", "arima", "random_forest", "xgboost"} <= set(improved["model"])
+    log = (p.artifacts / "final_runs.log").read_text(encoding="utf-8").strip().splitlines()
+    assert json.loads(log[-1])["run"] == "improvement_addendum"
+    assert pd.read_csv(p.metrics / "test_metrics.csv").equals(metrics)  # originals untouched
+
     results = pipeline.stage_simulate(cfg)
     assert set(results["strategy"]) == {"sell_forward", "wait", "fixed_50_50", "forecast_driven"}
     sens = pd.read_csv(p.simulation / "sensitivity.csv")

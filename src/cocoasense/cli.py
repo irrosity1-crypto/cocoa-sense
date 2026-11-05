@@ -200,6 +200,36 @@ def lstm_evaluate(
         typer.echo("LSTM validation metrics written (test period untouched)")
 
 
+improve_app = typer.Typer(
+    help="Improvement addendum: validate, freeze, one logged final run (decision D23).",
+    no_args_is_help=True,
+)
+app.add_typer(improve_app, name="improve")
+
+
+@improve_app.command("validate")
+def improve_validate(root: Path | None = RootOpt) -> None:
+    """Score the pre-registered candidates on 2016-2019 (test period untouched)."""
+    typer.echo(pipeline.stage_improve_validate(_cfg(root)))
+
+
+@improve_app.command("freeze")
+def improve_freeze(
+    overwrite: bool = typer.Option(False, help="Replace an existing frozen_improve.yaml."),
+    root: Path | None = RootOpt,
+) -> None:
+    """Write configs/frozen_improve.yaml from the validation decisions."""
+    pipeline.stage_improve_freeze(_cfg(root), overwrite=overwrite)
+    typer.echo("written configs/frozen_improve.yaml; commit it before `cocoasense improve final`")
+
+
+@improve_app.command("final")
+def improve_final(root: Path | None = RootOpt) -> None:
+    """One logged run of the adopted candidates on the test period."""
+    pipeline.stage_improve_final(_cfg(root))
+    typer.echo("written artifacts/metrics/improve_test_*.csv; run logged in final_runs.log")
+
+
 @app.command("all")
 def run_all(
     refresh: bool = typer.Option(False, help="Re-download raw data first."),

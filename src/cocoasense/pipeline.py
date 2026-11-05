@@ -28,6 +28,7 @@ from cocoasense.evaluation.experiments import (
     score_validation,
     validation_window,
 )
+from cocoasense.evaluation.improve import apply_guard, ensemble, guard_dates, scale_intervals
 from cocoasense.evaluation.insights import (
     brier,
     confidence_check,
@@ -1023,3 +1024,203 @@ def stage_fx(cfg: ProjectConfig, getter: Any = None) -> dict[str, Any]:
     except FxUnavailableError as exc:
         logger.warning("cedi rate not updated (offline?): %s", str(exc)[:200])
         return {"status": "offline"}
+
+
+# ----------------------------------------------- improvement addendum (D23)
+
+IMPROVE_MODELS = ["naive", "arima", "random_forest", "xgboost"]
+KEY_COLS = ["decision_date", "target_date", "horizon"]
+
+
+def _improve_cfg(cfg: ProjectConfig) -> dict[str, Any]:
+    path = cfg.paths.configs / "improve.yaml"
+    _require(path, "(restore configs/improve.yaml)")
+    loaded: dict[str, Any] = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return loaded
+
+
+def _validation_rows(cfg: ProjectConfig) -> pd.DataFrame:
+    """Development-stage forecasts (2016-2019) of the frozen model choices, renamed to bases."""
+    p = cfg.paths
+    val = pd.read_parquet(p.forecasts / "validation_predictions.parquet")
+    val = val[val["experiment"] == "train_start"]
+    labels = {"naive": "naive"} | {
+        m["validation_label"]: k
+        for k, m in load_frozen(p)["models"].items()
+        if "validation_label" in m
+    }
+    val = val[val["model"].isin(labels)]
+    return val.assign(model=val["model"].map(labels))
+
+
+def _candidates(
+    rows: pd.DataFrame, price: pd.Series, imp: dict[str, Any], cutoff: pd.Timestamp
+) -> pd.DataFrame:
+    """Original forecasts, the ensemble, and volatility-scaled versions of both."""
+    cols = [*KEY_COLS, "model", "last_obs", "y_true", "y_pred", "lower", "upper"]
+    base = rows[rows["model"].isin(IMPROVE_MODELS)][cols]
+    ens = ensemble(base, imp["ensemble"]["members"])
+    both = pd.concat([base, ens], ignore_index=True)
+    window = imp["volatility_scaled_intervals"]["window"]
+    scaled = scale_intervals(both, price, window, cutoff).drop(columns="vol_factor")
+    scaled = scaled.assign(model=scaled["model"] + "+volrange")
+    return pd.concat([both, scaled], ignore_index=True)
+
+
+def _guarded_simulation(
+    cfg: ProjectConfig,
+    preds: pd.DataFrame,
+    price: pd.Series,
+    imp: dict[str, Any],
+    cutoff: pd.Timestamp,
+) -> pd.DataFrame:
+    """Frozen forecast-driven rule with and without the volatility guard (revenue per tonne)."""
+    sim = cfg.simulation
+    frozen = load_frozen(cfg.paths)["simulation"]
+    driver = preds[
+        (preds["model"] == frozen["driver_model"]) & (preds["horizon"] == frozen["horizon"])
+    ]
+    provider = _provider(cfg, load_monthly(cfg))
+    strategies = [*FIXED_STRATEGIES, ForecastDriven(float(frozen["a"]))]
+    res = simulate(driver, strategies, provider, sim.quantity_t, sim.financing_rate_annual)
+    dates = guard_dates(price, imp["volatility_guard"]["window"], cutoff)
+    guarded = apply_guard(res, dates)
+    rows = []
+    for label, frame in (("forecast_driven", res), ("forecast_driven+guard", guarded)):
+        fd = frame[frame["strategy"] == "forecast_driven"]
+        rows.append(
+            {
+                "rule": label,
+                "mean_revenue_per_t": float(fd["revenue_per_t"].mean()),
+                "guarded_months": int(fd["decision_date"].isin(dates).sum())
+                if label.endswith("guard")
+                else 0,
+                "n_dates": len(fd),
+            }
+        )
+    half = res[res["strategy"] == "fixed_50_50"]
+    rows.append(
+        {
+            "rule": "fixed_50_50",
+            "mean_revenue_per_t": float(half["revenue_per_t"].mean()),
+            "guarded_months": 0,
+            "n_dates": len(half),
+        }
+    )
+    return pd.DataFrame(rows)
+
+
+def stage_improve_validate(cfg: ProjectConfig) -> dict[str, Any]:
+    """Score the pre-registered candidates on 2016-2019 and apply the adoption rules."""
+    p = cfg.paths
+    imp = _improve_cfg(cfg)
+    price = load_monthly(cfg)["price_usd_t"]
+    cutoff = cfg.evaluation.ts("train_end")
+    cand = _candidates(_validation_rows(cfg), price, imp, cutoff)
+    table = score(cand.assign(stage="validation", period="validation"))
+    write_table(
+        table,
+        p.metrics / "improve_validation.csv",
+        "Improvement candidates on the validation period (2016-2019), development models",
+    )
+    sim = _guarded_simulation(cfg, cand, price, imp, cutoff)
+    write_table(
+        sim,
+        p.metrics / "improve_validation_simulation.csv",
+        "Volatility guard on the validation period (frozen forecast-driven rule)",
+    )
+    t = table.set_index(["model", "horizon"])
+    horizons = sorted(int(h) for h in cand["horizon"].unique())
+    members = list(imp["ensemble"]["members"])
+    ens_ok = all(
+        t.loc[("ensemble", h), "mae"] < min(t.loc[(m, h), "mae"] for m in members) for h in horizons
+    )
+    adopt_for = [
+        m
+        for m in [*IMPROVE_MODELS, "ensemble"]
+        if all(
+            abs(t.loc[(f"{m}+volrange", h), "coverage"] - 0.8)
+            <= abs(t.loc[(m, h), "coverage"] - 0.8) + 1e-12
+            for h in horizons
+        )
+    ]
+    s = sim.set_index("rule")["mean_revenue_per_t"]
+    return {
+        "ensemble": {
+            "adopt": bool(ens_ok),
+            "members": members,
+            "validation_mae": {h: round(float(t.loc[("ensemble", h), "mae"]), 2) for h in horizons},
+            "members_validation_mae": {
+                m: {h: round(float(t.loc[(m, h), "mae"]), 2) for h in horizons} for m in members
+            },
+        },
+        "volatility_scaled_intervals": {"adopt_for": adopt_for},
+        "volatility_guard": {
+            "adopt": bool(s["forecast_driven+guard"] >= s["forecast_driven"] - 1e-9),
+            "validation_revenue": {k: round(float(v), 2) for k, v in s.items()},
+        },
+    }
+
+
+def stage_improve_freeze(cfg: ProjectConfig, overwrite: bool = False) -> dict[str, Any]:
+    """Write configs/frozen_improve.yaml from the validation decisions (commit before final)."""
+    path = cfg.paths.configs / "frozen_improve.yaml"
+    if path.exists() and not overwrite:
+        raise FileExistsError(f"{path} exists; it must not change after the final run")
+    decisions = stage_improve_validate(cfg)
+    record = {
+        "created_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
+        "note": "Chosen on 2016-2019 validation forecasts by the rules in configs/improve.yaml, "
+        "before any candidate was scored on the test period.",
+        "decisions": decisions,
+        "improve_config_sha256": sha256_of(cfg.paths.configs / "improve.yaml"),
+        "main_frozen_sha256": sha256_of(cfg.paths.frozen),
+    }
+    path.write_text(
+        "# Frozen improvement addendum (D23). Commit BEFORE `cocoasense improve final`.\n"
+        + yaml.safe_dump(record, sort_keys=False),
+        encoding="utf-8",
+    )
+    return record
+
+
+def stage_improve_final(cfg: ProjectConfig) -> pd.DataFrame:
+    """One logged run: the adopted candidates on the test period, next to the originals."""
+    p = cfg.paths
+    path = p.configs / "frozen_improve.yaml"
+    _require(path, "improve freeze")
+    decisions = yaml.safe_load(path.read_text(encoding="utf-8"))["decisions"]
+    imp = _improve_cfg(cfg)
+    price = load_monthly(cfg)["price_usd_t"]
+    cutoff = cfg.evaluation.ts("final_train_end")
+    test = pd.read_parquet(p.forecasts / "test_predictions.parquet")
+    cand = _candidates(test[test["experiment"] == "main"], price, imp, cutoff)
+    keep = set(IMPROVE_MODELS)
+    if decisions["ensemble"]["adopt"]:
+        keep.add("ensemble")
+    for m in decisions["volatility_scaled_intervals"]["adopt_for"]:
+        if m in keep:
+            keep.add(f"{m}+volrange")
+    cand = cand[cand["model"].isin(keep)]
+    long = assign_periods(cand.assign(stage="test"), cfg.evaluation.period_bounds())
+    table = score(long)
+    write_table(
+        table,
+        p.metrics / "improve_test_metrics.csv",
+        "Improvement addendum on the test period: adopted candidates next to the originals",
+    )
+    sim = _guarded_simulation(cfg, cand, price, imp, cutoff)
+    if not decisions["volatility_guard"]["adopt"]:
+        sim = sim[sim["rule"] != "forecast_driven+guard"]
+    write_table(
+        sim,
+        p.metrics / "improve_test_simulation.csv",
+        "Selling rule on the test period, with the volatility guard if adopted",
+    )
+    log_final_run(
+        p.artifacts / "final_runs.log",
+        p.root,
+        path,
+        {"run": "improvement_addendum", "models": sorted(keep), "n_rows": len(cand)},
+    )
+    return table

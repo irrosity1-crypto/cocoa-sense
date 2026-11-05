@@ -122,6 +122,7 @@ data/raw (immutable + manifest.json)
 | `cocoasense update [--auto]` | fetch the latest prices, score earlier forecasts, refit, forecast ahead (`--auto`: only if a source has new data) |
 | `cocoasense fx` | fetch the latest US$ to cedi rate now (display only) |
 | `cocoasense schedule-updates [--remove]` | run `update --auto` daily and at log-on, when online (Windows) |
+| `cocoasense improve validate` / `freeze` / `final` | improvement addendum: pre-registered candidates, chosen on validation, tested once (D23) |
 | `cocoasense app` / `install-shortcut` | the dashboard as a desktop app window / a desktop icon that opens it (Windows) |
 | `cocoasense lstm train` / `lstm freeze` / `lstm evaluate --final` | the LSTM stretch model's own validation → freeze → final cycle (`configs/frozen_lstm.yaml`) |
 
@@ -183,6 +184,11 @@ in `docs/results.md`):
   was a reliable warning, but the other labels did not rank outcomes and the up/down chance was no
   better than a coin flip. A separate learning track refits every month; it did not improve
   accuracy. `docs/results.md` section 10.
+- **Improvements** (decision D23, pre-registered, chosen on validation, tested once):
+  volatility-aware prediction ranges brought XGBoost's 80 % range coverage from 72 % to 84 %
+  (1 month) and 67 % to 78 % (3 months); a volatility guard raised the selling rule's revenue by
+  0.4 % but it still trails 50/50; an equal-weight ensemble was rejected on validation.
+  `docs/results.md` section 11.
 - **Cedi revenue view** (decision D17): the same simulation in Ghana cedis at the delivery-month
   rate (deliveries to Jan 2026). Strategy rankings are unchanged; from 2020 to 2025, simulated
   cedi revenue per tonne rose ×7.7, about 60 % from cocoa prices and 40 % from cedi depreciation.

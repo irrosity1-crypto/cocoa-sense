@@ -1,0 +1,31 @@
+# Improvement addendum (decision D23).
+# Written and committed BEFORE any candidate below was scored on any data.
+# Every candidate is computed from the stored frozen forecasts: nothing is refitted, and the
+# original results (test_metrics.csv, the simulation's frozen rule) are not changed.
+# Choices are made on the validation period (2016-2019) only, by the rules under `adoption`,
+# then written to configs/frozen_improve.yaml before the single logged test run.
+
+ensemble:
+  members: [arima, random_forest, xgboost]
+  # Equal weights, so there is nothing to tune. Point forecast = geometric mean of the members'
+  # forecasts; interval = the same point with the members' average log half-widths.
+
+volatility_scaled_intervals:
+  window: 12        # months of log returns for volatility known at the decision month
+  # Reference = median 12-month volatility over all months up to the training cut-off.
+  # Each log half-width is multiplied by max(1, current volatility / reference): ranges only
+  # widen when the market is more volatile than usual, never narrow.
+
+volatility_guard:
+  window: 12
+  # The forecast-driven selling rule falls back to a fixed 50/50 split in any decision month
+  # whose 12-month volatility exceeds the highest 12-month volatility seen up to the cut-off.
+
+adoption:
+  ensemble: >-
+    Adopt if its validation MAE is lower than every member's at both horizons.
+  scaled_intervals: >-
+    Adopt for each model if validation coverage is no further from 80 % than with unscaled
+    intervals, at both horizons.
+  volatility_guard: >-
+    Adopt if the guarded rule's validation mean revenue is not lower than the unguarded rule's.

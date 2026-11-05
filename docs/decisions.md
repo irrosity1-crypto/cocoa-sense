@@ -260,3 +260,24 @@ Each entry: date, options considered, choice, reason. Newest last.
   range buttons. Colours follow trading conventions: green for rises and successes, red for falls
   and misses, one gold accent. The look follows common conventions of such apps and copies none.
 - **Unchanged:** all numbers, wording of caveats and disclaimers, and every result.
+
+## D23 · 2026-11-05 · Improvement addendum: ensemble, volatility-aware ranges, volatility guard
+- **Context:** the author asked whether the models could be improved. The test period must not
+  be used to choose anything, so improvements follow the same validate, freeze, test-once cycle
+  as the LSTM (D16).
+- **Protocol:** `configs/improve.yaml` defined three candidates and the rules for adopting them,
+  and was committed (`df86291`) before any candidate was scored. The candidates were scored on
+  the 2016-2019 validation forecasts, the decisions were written to `configs/frozen_improve.yaml`
+  and committed (`fbce17b`), and the adopted candidates were then evaluated once on the test
+  period (`artifacts/final_runs.log`, `"run": "improvement_addendum"`). All candidates are built
+  from the stored frozen forecasts; no model was refitted and no original result changed.
+- **Candidates:** (1) an equal-weight ensemble of ARIMA, Random Forest and XGBoost; (2) prediction
+  ranges widened by max(1, current 12-month volatility / median volatility up to the cut-off);
+  (3) a guard that switches the forecast-driven selling rule to 50/50 when volatility exceeds the
+  highest level seen up to the cut-off.
+- **Validation decisions:** ensemble not adopted (it did not beat the best single model at either
+  horizon); volatility-aware ranges adopted for XGBoost only (for the others they moved coverage
+  further from 80 % in calm 2016-2019); guard adopted (it never triggered in validation).
+- **Caveat:** the candidates were proposed after the original test results were known (they target
+  weaknesses that results.md describes), so this test is not fully blind. Pre-registration and
+  validation-only choices limit, but do not remove, that bias.
