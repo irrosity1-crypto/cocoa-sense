@@ -117,11 +117,33 @@ def insights(root: Path | None = RootOpt) -> None:
 @app.command()
 def update(
     refresh: bool = typer.Option(True, help="Download the latest prices (--no-refresh: reuse)."),
+    auto: bool = typer.Option(
+        False, "--auto", help="Retrain only if a source has new data (what the schedule runs)."
+    ),
     root: Path | None = RootOpt,
 ) -> None:
     """Fetch the latest prices, score earlier forecasts, refit the learning track, forecast."""
+    if auto:
+        rec = pipeline.stage_auto_update(_cfg(root))
+        typer.echo(f"{rec['status']}; data through {rec['data_through']}")
+        return
     rec = pipeline.stage_update(_cfg(root), refresh=refresh)
     typer.echo(f"data through {rec['data_through']} (was {rec['data_through_before']})")
+
+
+@app.command("schedule-updates")
+def schedule_updates(
+    at: str = typer.Option("09:00", help="Daily check time (24-hour HH:MM)."),
+    remove: bool = typer.Option(False, "--remove", help="Turn automatic updates off."),
+) -> None:  # pragma: no cover - changes the Windows task scheduler
+    """Check for new prices daily and at log-on (when online) and retrain automatically."""
+    from cocoasense.desktop import TASK_NAME, register_schedule, remove_schedule
+
+    if remove:
+        remove_schedule()
+        typer.echo(f"automatic updates off ('{TASK_NAME}' removed)")
+    else:
+        typer.echo(f"automatic updates on: {register_schedule(at)}")
 
 
 lstm_app = typer.Typer(

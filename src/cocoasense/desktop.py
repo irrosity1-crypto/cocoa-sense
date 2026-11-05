@@ -301,3 +301,49 @@ def main() -> None:  # pragma: no cover - entry point of the shortcut
 
 if __name__ == "__main__":  # pragma: no cover
     main()
+
+
+# ------------------------------------------------------------ automatic updates
+
+TASK_NAME = "CocoaSense auto-update"
+
+
+def schedule_script(pythonw: Path, workdir: Path, at: str = "09:00") -> str:
+    """PowerShell that registers the daily + at-logon update task (only when online)."""
+    action = (
+        f"New-ScheduledTaskAction -Execute {_ps_quote(str(pythonw))} "
+        f"-Argument '-m cocoasense.autoupdate' -WorkingDirectory {_ps_quote(str(workdir))}"
+    )
+    return "; ".join(
+        [
+            f"$a = {action}",
+            f"$t1 = New-ScheduledTaskTrigger -Daily -At {_ps_quote(at)}",
+            "$t2 = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME",
+            "$s = New-ScheduledTaskSettingsSet -StartWhenAvailable -RunOnlyIfNetworkAvailable "
+            "-AllowStartIfOnBatteries -DontStopIfGoingOnBatteries "
+            "-ExecutionTimeLimit (New-TimeSpan -Hours 1)",
+            f"Register-ScheduledTask -TaskName {_ps_quote(TASK_NAME)} -Action $a "
+            "-Trigger $t1,$t2 -Settings $s -Force "
+            f"-Description {_ps_quote('Checks for new cocoa prices and retrains CocoaSense')}"
+            " | Out-Null",
+        ]
+    )
+
+
+def register_schedule(at: str = "09:00") -> str:  # pragma: no cover - Windows only
+    """Create (or replace) the Windows scheduled task; return a description."""
+    if sys.platform != "win32":
+        raise RuntimeError("automatic updates are scheduled on Windows only")
+    pythonw = Path(sys.executable).with_name("pythonw.exe")
+    script = schedule_script(pythonw, PROJECT_ROOT, at)
+    subprocess.run(["powershell", "-NoProfile", "-Command", script], check=True)
+    return f"'{TASK_NAME}' runs daily at {at} and at every log-on, whenever you are online"
+
+
+def remove_schedule() -> None:  # pragma: no cover - Windows only
+    """Delete the scheduled task if it exists."""
+    script = (
+        f"Unregister-ScheduledTask -TaskName {_ps_quote(TASK_NAME)} -Confirm:$false "
+        "-ErrorAction SilentlyContinue"
+    )
+    subprocess.run(["powershell", "-NoProfile", "-Command", script], check=True)

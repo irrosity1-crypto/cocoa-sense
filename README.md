@@ -53,6 +53,20 @@ On Linux/macOS `make reproduce`, `make lint` and `make test` do the same.
 All screenshots, including the Forecast Explorer before reveal and the Data and Method page, are in
 `docs/figures/`.
 
+### Automatic updates (Windows)
+
+```bash
+uv run cocoasense schedule-updates          # once; --remove turns it off
+```
+
+A background task checks the World Bank, FRED and IMF sources daily at 09:00 and at every log-on,
+whenever the computer is online. When a new monthly price is published it downloads it, scores
+the earlier forecasts against it, retrains the learning-track models and refreshes the live
+forecasts and confidence, with no action needed. If nothing changed, or you are offline, it does
+nothing and tries again later. The result of each check is shown on the Live Forecast page and
+logged in `%LOCALAPPDATA%\CocoaSense\auto_update.log`. Prices are monthly averages: the free
+sources publish no daily prices (decision D20).
+
 ### Desktop app (Windows)
 
 ```bash
@@ -91,7 +105,8 @@ data/raw (immutable + manifest.json)
 | `cocoasense dashboard` | Streamlit app (reads artifacts only) |
 | `cocoasense learn` | learning track: refit every month on all prices known so far, forecast ahead (D19) |
 | `cocoasense insights` | success scorecards, ex-ante confidence per forecast, calibration, live forecasts |
-| `cocoasense update [--no-refresh]` | fetch the latest prices, score earlier forecasts, refit, forecast ahead |
+| `cocoasense update [--auto]` | fetch the latest prices, score earlier forecasts, refit, forecast ahead (`--auto`: only if a source has new data) |
+| `cocoasense schedule-updates [--remove]` | run `update --auto` daily and at log-on, when online (Windows) |
 | `cocoasense app` / `install-shortcut` | the dashboard as a desktop app window / a desktop icon that opens it (Windows) |
 | `cocoasense lstm train` / `lstm freeze` / `lstm evaluate --final` | the LSTM stretch model's own validation → freeze → final cycle (`configs/frozen_lstm.yaml`) |
 

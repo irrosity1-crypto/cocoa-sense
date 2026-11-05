@@ -52,6 +52,15 @@ with c3:
             st.code(res.stderr[-2000:])
     if log:
         st.caption(f"Last update: {log[-1]['timestamp'][:16].replace('T', ' ')} UTC")
+    autos = [r for r in log if r.get("mode") == "auto"]
+    if autos:
+        st.caption(
+            f"Automatic check {autos[-1]['timestamp'][:16].replace('T', ' ')} UTC: "
+            f"{autos[-1]['status']}. New monthly prices are downloaded and the models retrained "
+            "automatically (daily and at log-on, when online)."
+        )
+    else:
+        st.caption("Automatic updates: turn on with `uv run cocoasense schedule-updates`.")
 
 data.explainer(
     "These forecasts come from the **learning track**: every model is refitted each month on all "
