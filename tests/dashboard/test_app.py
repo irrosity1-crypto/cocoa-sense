@@ -81,7 +81,7 @@ def test_forecast_explorer_hides_future_until_revealed(
 ) -> None:
     monkeypatch.setenv("COCOASENSE_ROOT", str(built))
     at = AppTest.from_file(
-        str(DASH / "pages" / "4_Forecast_Explorer.py"), default_timeout=120
+        str(DASH / "pages" / "5_Forecast_Explorer.py"), default_timeout=120
     ).run()
     table = at.dataframe[0].value
     assert "Actual US$/t" not in table.columns
@@ -93,10 +93,27 @@ def test_forecast_explorer_hides_future_until_revealed(
 def test_strategy_simulator_cedi_view(built: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("COCOASENSE_ROOT", str(built))
     at = AppTest.from_file(
-        str(DASH / "pages" / "6_Strategy_Simulator.py"), default_timeout=120
+        str(DASH / "pages" / "7_Strategy_Simulator.py"), default_timeout=120
     ).run()
     assert "Mean US$/t" in at.dataframe[0].value.columns
     at.radio(key="currency").set_value("Ghana cedis (GHS)").run()
     assert not at.exception
     assert "Mean GHS/t" in at.dataframe[0].value.columns
     assert any("not extrapolated" in c.value for c in at.caption)
+
+
+@pytest.mark.slow
+def test_month_by_month_filters(built: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("COCOASENSE_ROOT", str(built))
+    at = AppTest.from_file(str(DASH / "pages" / "2_Month_by_Month.py"), default_timeout=120).run()
+    assert not at.exception
+    months = at.dataframe[0].value
+    assert "Actual US$/t" in months.columns and "Models within range" in months.columns
+    at.radio(key="mbm_view").set_value("One row per forecast").run()
+    at.selectbox(key="mbm_show").set_value("Failures only").run()
+    rows = at.dataframe[0].value
+    assert not at.exception
+    assert len(rows) == 0 or rows["Result"].str.contains("Failure").all()
+    at.radio(key="mbm_thr").set_value(5.0).run()
+    stricter = at.dataframe[0].value
+    assert len(stricter) >= len(rows)  # a tighter success range can only add failures
