@@ -85,3 +85,16 @@ def test_forecast_explorer_hides_future_until_revealed(
     assert "Actual US$/t" not in table.columns
     at.toggle[0].set_value(True).run()
     assert "Actual US$/t" in at.dataframe[0].value.columns
+
+
+@pytest.mark.slow
+def test_strategy_simulator_cedi_view(built: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("COCOASENSE_ROOT", str(built))
+    at = AppTest.from_file(
+        str(DASH / "pages" / "3_Strategy_Simulator.py"), default_timeout=120
+    ).run()
+    assert "Mean US$/t" in at.dataframe[0].value.columns
+    at.radio(key="currency").set_value("Ghana cedis (GHS)").run()
+    assert not at.exception
+    assert "Mean GHS/t" in at.dataframe[0].value.columns
+    assert any("not extrapolated" in c.value for c in at.caption)

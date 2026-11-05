@@ -75,11 +75,17 @@ def test_full_pipeline(raw_fixture_files: ProjectConfig) -> None:
     assert "lstm" in set(sens.loc[sens["parameter"] == "driver_model", "value"])
     for name in ("strategy_metrics.csv", "stress_scenarios.csv", "sensitivity.csv"):
         assert (p.simulation / name).exists()
+    meta = json.loads((p.simulation / "simulation_meta.json").read_text(encoding="utf-8"))
+    assert meta["cedi_view"]["of"] == results["decision_date"].nunique()
+    cedi = pd.read_csv(p.simulation / "cedi_strategy_metrics.csv")
+    assert (cedi.loc[cedi["period"] == "full", "n_dates"] == meta["cedi_view"]["deliveries"]).all()
+    assert (p.simulation / "cedi_annual.csv").exists()
 
     pipeline.stage_report(cfg)
     assert (p.figures / "test_actual_vs_pred_h3.png").exists()
     assert (p.figures / "simulation_strategy_outcomes.png").exists()
     assert (p.figures / "test_actual_vs_pred_with_lstm_h1.png").exists()
+    assert (p.figures / "simulation_cedi_revenue.png").exists()
     misses = pd.read_csv(p.metrics / "test_largest_misses.csv")
     assert set(misses["horizon"]) == {1, 3} and len(misses) == 20
     assert (

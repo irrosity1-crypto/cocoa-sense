@@ -7,6 +7,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from cocoasense.simulation.currency import annual_cedi, to_cedis
 from cocoasense.simulation.engine import revenue, scenario_delivery, simulate
 from cocoasense.simulation.futures_provider import CsvFuturesProvider, SpotProxyProvider
 from cocoasense.simulation.metrics import strategy_metrics, worst_share_mean
@@ -140,3 +141,30 @@ def test_csv_futures_provider(tmp_path: Path) -> None:
     pd.DataFrame({"date": ["2020-01-01"], "settle": [1]}).to_csv(bad, index=False)
     with pytest.raises(ValueError):
         CsvFuturesProvider(bad)
+
+
+def test_cedi_view_converts_at_delivery_month_and_never_extrapolates() -> None:
+    fc = _forecasts()  # deliveries Apr, May, Jun 2020
+    provider = SpotProxyProvider(pd.Series(F, index=fc["decision_date"]))
+    res = simulate(fc, [*FIXED_STRATEGIES, ForecastDriven(0.5)], provider, 2.0, 0.0)
+    # SYNTHETIC rates; June 2020 has none, and a decision-month rate must not be used.
+    fx = pd.Series(
+        [1.0, 10.0, 12.0, float("nan")],
+        index=pd.to_datetime(["2020-01-01", "2020-04-01", "2020-05-01", "2020-06-01"]),
+    )
+    cedi = to_cedis(res, fx)
+    assert set(cedi["target_date"]) == {pd.Timestamp("2020-04-01"), pd.Timestamp("2020-05-01")}
+    wait = cedi[cedi["strategy"] == "wait"].sort_values("target_date")
+    assert wait["revenue_ghs_per_t"].tolist() == pytest.approx([60000.0, 60000.0])
+    assert wait["revenue_ghs"].tolist() == pytest.approx([120000.0, 120000.0])
+    # One rate per date: per-date winners are unchanged, so win rates match US$ on those dates.
+    usd = strategy_metrics(res[res["target_date"] < "2020-06-01"]).set_index("strategy")
+    ghs = strategy_metrics(cedi, "revenue_ghs_per_t").set_index("strategy")
+    assert (ghs["win_rate_vs_5050"] == usd["win_rate_vs_5050"]).all()
+    assert ghs.loc["sell_forward", "mean_revenue_per_t"] == pytest.approx(5000 * 11)
+
+    annual = annual_cedi(cedi).set_index("strategy")
+    assert annual.loc["wait", "n_deliveries"] == 2
+    assert annual.loc["wait", "mean_ghs_per_usd"] == pytest.approx(11.0)
+    assert annual.loc["wait", "mean_revenue_usd_per_t"] == pytest.approx(5500.0)
+    assert to_cedis(res, fx.iloc[:1]).empty

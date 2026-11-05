@@ -29,6 +29,7 @@ from cocoasense.ingestion.download import download
 from cocoasense.ingestion.manifest import ManifestEntry, sha256_of
 from cocoasense.ingestion.sources import Downloader, ingest_all
 from cocoasense.models.registry import build_model
+from cocoasense.simulation.currency import annual_cedi, to_cedis
 from cocoasense.simulation.engine import scenario_delivery, simulate
 from cocoasense.simulation.futures_provider import (
     CsvFuturesProvider,
@@ -500,6 +501,7 @@ def stage_simulate(cfg: ProjectConfig) -> pd.DataFrame:
         f"Strategy metrics (test period, driver {driver}, a={a}, h={frozen['horizon']}, "
         f"{provider.mode})",
     )
+    cedi_view = write_cedi_view(cfg, results, monthly)
 
     scen_rows = []
     for name, factor in sim.scenarios.items():
@@ -550,6 +552,7 @@ def stage_simulate(cfg: ProjectConfig) -> pd.DataFrame:
                 "horizon": frozen["horizon"],
                 "quantity_t": sim.quantity_t,
                 "financing_rate_annual": sim.financing_rate_annual,
+                "cedi_view": cedi_view,
             },
             indent=2,
         )
@@ -557,6 +560,44 @@ def stage_simulate(cfg: ProjectConfig) -> pd.DataFrame:
         encoding="utf-8",
     )
     return results
+
+
+def write_cedi_view(
+    cfg: ProjectConfig, results: pd.DataFrame, monthly: pd.DataFrame
+) -> dict[str, Any]:
+    """Write the frozen simulation in cedis (delivery-month IMF rate); return its coverage.
+
+    A reporting view of ``results``: nothing is re-simulated and no setting is chosen here.
+    """
+    p = cfg.paths
+    cedi = to_cedis(results, monthly["ghs_per_usd"])
+    coverage: dict[str, Any] = {
+        "deliveries": int(cedi["decision_date"].nunique()),
+        "of": int(results["decision_date"].nunique()),
+        "first_delivery": None,
+        "last_delivery": None,
+    }
+    if cedi.empty:
+        logger.warning("no delivery month has an observed exchange rate; cedi view skipped")
+        return coverage
+    first, last = cedi["target_date"].min(), cedi["target_date"].max()
+    coverage.update(first_delivery=f"{first:%Y-%m}", last_delivery=f"{last:%Y-%m}")
+    span = (
+        f"deliveries {first:%b %Y} – {last:%b %Y}, {coverage['deliveries']} of "
+        f"{coverage['of']} with an observed rate"
+    )
+    write_table(
+        metrics_by_period(cedi, cfg.evaluation.period_bounds(), value="revenue_ghs_per_t"),
+        p.simulation / "cedi_strategy_metrics.csv",
+        f"Cedi view of the frozen simulation: Ghana cedis per tonne at the delivery-month "
+        f"GHS/US$ rate ({span}). Simulated, not Ghana's actual revenue.",
+    )
+    write_table(
+        annual_cedi(cedi),
+        p.simulation / "cedi_annual.csv",
+        f"Cedi view by delivery year: mean US$/t, mean GHS/US$ and mean GHS/t ({span})",
+    )
+    return coverage
 
 
 # ------------------------------------------------------------------------ report
@@ -617,7 +658,11 @@ def stage_report(cfg: ProjectConfig) -> None:
             )
     sim = p.simulation / "strategy_results.parquet"
     if sim.exists():
-        figures.strategy_outcomes(pd.read_parquet(sim), f / "simulation_strategy_outcomes.png")
+        sim_results = pd.read_parquet(sim)
+        figures.strategy_outcomes(sim_results, f / "simulation_strategy_outcomes.png")
+        cedi = to_cedis(sim_results, monthly["ghs_per_usd"])
+        if not cedi.empty:
+            figures.cedi_revenue(cedi, f / "simulation_cedi_revenue.png")
 
 
 def largest_misses(preds: pd.DataFrame, n: int) -> pd.DataFrame:
