@@ -8,6 +8,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -28,6 +29,7 @@ from cocoasense.evaluation.experiments import (
     score_validation,
     validation_window,
 )
+from cocoasense.evaluation.explain import contributions
 from cocoasense.evaluation.improve import (
     apply_guard,
     ensemble,
@@ -965,6 +967,7 @@ def stage_update(cfg: ProjectConfig, refresh: bool = True) -> dict[str, Any]:
     monthly = stage_validate(cfg)
     stage_learn(cfg)
     stage_insights(cfg)
+    stage_explain(cfg)
     fx = stage_fx(cfg) if refresh else {"status": "skipped"}
     record = {
         "timestamp": datetime.now(UTC).replace(microsecond=0).isoformat(),
@@ -1002,6 +1005,7 @@ def stage_auto_update(
             stage_validate(cfg)
             stage_learn(cfg)
             stage_insights(cfg)
+            stage_explain(cfg)
             status = "retrained on new data" if changed else "built forecasts"
         except DataQualityError as exc:
             status = "new data failed checks"
@@ -1244,3 +1248,54 @@ def stage_improve_final(cfg: ProjectConfig) -> pd.DataFrame:
         {"run": "improvement_addendum", "models": sorted(keep), "n_rows": len(cand)},
     )
     return table
+
+
+# ------------------------------------------------------ live explanations
+
+EXPLAINED = ("random_forest", "xgboost")
+
+
+def stage_explain(cfg: ProjectConfig) -> pd.DataFrame:
+    """Per-input contributions behind the live tree-model forecasts (learning track).
+
+    The models are refitted on all prices known now, exactly as the learning track does for its
+    latest forecasts, so the breakdown explains the forecasts shown on the Live Forecast page.
+    """
+    p = cfg.paths
+    monthly = load_monthly(cfg)
+    factories = learning_models(cfg)
+    last = pd.Timestamp(monthly.index.max())
+    parts = []
+    for name in EXPLAINED:
+        if name not in factories:
+            continue
+        model = factories[name]()
+        model.fit(monthly)
+        for h in cfg.features.horizons:
+            table = contributions(model, monthly, h)  # type: ignore[arg-type]
+            parts.append(table.assign(model=name, horizon=h, decision_date=last))
+    if not parts:
+        return pd.DataFrame()
+    out = pd.concat(parts, ignore_index=True)
+    live = p.forecasts / LEARNING
+    if live.exists():
+        stored = pd.read_parquet(live)
+        stored = stored[(stored["decision_date"] == last) & stored["model"].isin(EXPLAINED)]
+        price_now = float(monthly["price_usd_t"].iloc[-1])
+        for (m, h), g in out.groupby(["model", "horizon"]):
+            row = stored[(stored["model"] == m) & (stored["horizon"] == h)]
+            if not row.empty:
+                implied = price_now * float(np.exp(g["prediction"].iloc[0]))
+                gap = abs(implied / float(row["y_pred"].iloc[0]) - 1)
+                if gap > 0.005:
+                    logger.warning(
+                        "%s h=%s explanation differs from live forecast by %.2f%%", m, h, gap * 100
+                    )
+    cols = ["model", "horizon", "decision_date", "feature", "label", "value", "contribution"]
+    write_table(
+        out[[*cols, "base", "prediction"]],
+        p.metrics / "live_explanations.csv",
+        f"Why the live forecasts are what they are (data through {last:%b %Y}): contribution of "
+        "each input to the forecast log return",
+    )
+    return out

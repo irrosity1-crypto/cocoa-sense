@@ -108,6 +108,12 @@ def test_full_pipeline(raw_fixture_files: ProjectConfig) -> None:
     assert {"within_5pct_pct", "within_10pct_pct", "direction_correct_pct"} <= set(card.columns)
     for name in ("confidence_check.csv", "probability_calibration.csv", "learning_vs_frozen.csv"):
         assert (p.metrics / name).exists()
+    expl = pipeline.stage_explain(cfg)
+    assert set(expl["model"]) == {"xgboost"}  # Random Forest is not in this fixture's track
+    assert (p.metrics / "live_explanations.csv").exists()
+    from cocoasense.report_pdf import build_report
+
+    assert build_report(cfg)[:4] == b"%PDF"
     live_table = pd.read_csv(p.metrics / "live_forecasts.csv")
     assert live_table["explanation"].str.contains("expects").all()
     rec = pipeline.stage_update(cfg, refresh=False)

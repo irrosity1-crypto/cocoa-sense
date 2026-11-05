@@ -153,6 +153,31 @@ if not fxm.empty:
             "online. Used only to show cedi values; no model uses the exchange rate."
         )
 
+r1, r2 = st.columns([3, 1])
+with r2:
+    if st.button("Prepare PDF report", use_container_width=True, key="pdf_prepare"):
+        from cocoasense.report_pdf import build_report
+
+        with st.spinner("Building the report…"):
+            try:
+                st.session_state["pdf_report"] = build_report(data.cfg())
+            except FileNotFoundError:
+                st.warning("Run `uv run cocoasense insights` first to build the forecasts.")
+    if "pdf_report" in st.session_state:
+        st.download_button(
+            "Download PDF report",
+            st.session_state["pdf_report"],
+            "cocoasense_report.pdf",
+            "application/pdf",
+            use_container_width=True,
+            type="primary",
+        )
+with r1:
+    st.caption(
+        "A three-page PDF for your supervisor: current forecasts with confidence, the track "
+        "record of past forecasts, and the key findings."
+    )
+
 st.subheader("Held-out test results (January 2020 onward)")
 table = data.test_metrics()
 if table is None:

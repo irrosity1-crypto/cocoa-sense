@@ -117,3 +117,13 @@ def test_month_by_month_filters(built: Path, monkeypatch: pytest.MonkeyPatch) ->
     at.radio(key="mbm_thr").set_value(5.0).run()
     stricter = at.dataframe[0].value
     assert len(stricter) >= len(rows)  # a tighter success range can only add failures
+
+
+@pytest.mark.slow
+def test_month_by_month_shows_upcoming_months(built: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("COCOASENSE_ROOT", str(built))
+    at = AppTest.from_file(str(DASH / "pages" / "2_Month_by_Month.py"), default_timeout=120).run()
+    at.radio(key="mbm_track").set_value("learning").run()
+    assert not at.exception
+    table = at.dataframe[0].value
+    assert table["Models within range"].str.contains("awaiting").any()

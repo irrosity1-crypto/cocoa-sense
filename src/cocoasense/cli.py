@@ -20,6 +20,7 @@ app = typer.Typer(
 )
 
 RootOpt = typer.Option(None, "--root", help="Project root (defaults to the repository root).")
+OutOpt = typer.Option(None, "--out", help="Where to save the file.")
 
 
 def _cfg(root: Path | None) -> ProjectConfig:
@@ -228,6 +229,30 @@ def improve_final(root: Path | None = RootOpt) -> None:
     """One logged run of the adopted candidates on the test period."""
     pipeline.stage_improve_final(_cfg(root))
     typer.echo("written artifacts/metrics/improve_test_*.csv; run logged in final_runs.log")
+
+
+@app.command()
+def explain(root: Path | None = RootOpt) -> None:
+    """Break the live tree-model forecasts down into what pushed them up or down."""
+    out = pipeline.stage_explain(_cfg(root))
+    typer.echo(f"explanations written for {out['model'].nunique()} models")
+
+
+@app.command("report-pdf")
+def report_pdf(
+    out: Path | None = OutOpt,
+    root: Path | None = RootOpt,
+) -> None:
+    """Write a three-page PDF: current forecasts, track record and key findings."""
+    from datetime import date
+
+    from cocoasense.report_pdf import build_report
+
+    cfg = _cfg(root)
+    path = out or cfg.paths.artifacts / "reports" / f"cocoasense_report_{date.today():%Y-%m-%d}.pdf"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(build_report(cfg))
+    typer.echo(f"report written to {path}")
 
 
 @app.command("all")

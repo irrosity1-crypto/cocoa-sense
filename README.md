@@ -57,6 +57,11 @@ The interface is a dark trading-terminal design: a scrolling market strip on eve
 monthly move, cedi value, exchange rate, next forecast and confidence), headline price cards with
 up/down badges, and charts with 1Y/3Y/5Y/10Y/ALL range buttons (decision D22).
 
+**Explanations and reports.** Live Forecast shows *why* each tree model forecasts what it does
+(exact per-input contributions: Shapley values for XGBoost, decision-path contributions for Random
+Forest). Month by Month lists upcoming months as "awaiting actual price" until they are published.
+The Overview page builds a three-page PDF report for a supervisor in one click.
+
 ### Cedi values and the live exchange rate
 
 Prices are shown in US dollars with their Ghana cedi equivalent (GH₵) across the dashboard, and
@@ -123,6 +128,8 @@ data/raw (immutable + manifest.json)
 | `cocoasense fx` | fetch the latest US$ to cedi rate now (display only) |
 | `cocoasense schedule-updates [--remove]` | run `update --auto` daily and at log-on, when online (Windows) |
 | `cocoasense improve validate` / `freeze` / `final` | improvement addendum: pre-registered candidates, chosen on validation, tested once (D23) |
+| `cocoasense explain` | break the live tree-model forecasts down into what pushed them up or down |
+| `cocoasense report-pdf [--out FILE]` | three-page PDF: current forecasts, track record, key findings |
 | `cocoasense app` / `install-shortcut` | the dashboard as a desktop app window / a desktop icon that opens it (Windows) |
 | `cocoasense lstm train` / `lstm freeze` / `lstm evaluate --final` | the LSTM stretch model's own validation → freeze → final cycle (`configs/frozen_lstm.yaml`) |
 

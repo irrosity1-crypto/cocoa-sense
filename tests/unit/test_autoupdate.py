@@ -87,6 +87,7 @@ def test_auto_update_retrains_only_on_new_data(
     called: list[str] = []
     monkeypatch.setattr(pipeline, "stage_learn", lambda c: called.append("learn"))
     monkeypatch.setattr(pipeline, "stage_insights", lambda c: called.append("insights"))
+    monkeypatch.setattr(pipeline, "stage_explain", lambda c: called.append("explain"))
 
     rec = pipeline.stage_auto_update(cfg, downloader=_offline, fx_getter=_fx_down)
     assert rec["status"] == "offline" and called == []
@@ -109,7 +110,8 @@ def test_auto_update_retrains_only_on_new_data(
 
     rec = pipeline.stage_auto_update(cfg, downloader=new_fred, fx_getter=_fx_down)
     assert rec["changed"] == [FRED]
-    assert rec["status"] == "retrained on new data" and called == ["learn", "insights"]
+    assert rec["status"] == "retrained on new data"
+    assert called == ["learn", "insights", "explain"]
 
 
 def test_schedule_script() -> None:
