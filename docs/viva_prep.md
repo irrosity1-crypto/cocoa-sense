@@ -43,6 +43,19 @@ Bank price is already a futures price: the ICCO average of the nearest three pos
 and London. So the forward price is a near-futures average, not a spot price. What it misses is
 the exact contract for each delivery month, which matters most when the curve is steep, as in 2024.
 
+**How sure can a user be about a forecast?**
+Each forecast carries an ex-ante confidence (D19): the chance of landing within ±5 % / ±10 %,
+estimated from the same model's earlier errors that were known at the time, scaled by current
+volatility, plus model agreement. Checked afterwards, a High label at 1 month meant about 9 in 10
+within ±10 %, and a Low label at 3 months meant fewer than 1 in 5; the other labels did not rank
+outcomes, and the up/down chance was no better than a coin flip. The app says this openly.
+
+**Doesn't "keep learning" break your no-post-2019 rule?**
+It would if it replaced the frozen test, so it doesn't. The frozen track is untouched; the learning
+track is a separate, labelled comparison where each refit at month t uses only data up to t
+(leakage test 6). It did not improve accuracy; refitting on the rally made the tree models chase
+momentum just before the fall.
+
 **Is this Ghana's real gain or loss?**
 No. It is a simulation on public monthly prices with an approximate forward price. Contract terms,
 basis, financing arrangements and delivery obligations are not public (`docs/limitations.md`).

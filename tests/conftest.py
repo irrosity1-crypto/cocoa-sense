@@ -112,6 +112,10 @@ SMALL_OVERRIDES = {
         "train_start_candidates": ["1982-01", "1991-01"],
     },
     "simulation.yaml": {"a_grid": [0.0, 0.5, 1.0]},
+    "insights.yaml": {
+        "min_past_errors": 6,
+        "learning": {"first_target": "2013-01", "models": ["naive", "arima", "xgboost"]},
+    },
     "lstm.yaml": {
         "input_sets": [["ret_1m"], ["ret_1m", "log_price"]],
         "lookback": [6],

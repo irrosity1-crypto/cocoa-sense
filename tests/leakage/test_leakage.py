@@ -5,6 +5,7 @@
 3. Walk-forward: training rows and their targets end at or before the cut-off.
 4. Fit on training only: tuning and calibration are unchanged by post-cut-off data.
 5. Strategies: every decision uses only data up to its decision date.
+6. Learning track: a monthly-refitted forecast made at t is unchanged by any data after t.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ import pandas as pd
 import pytest
 
 from cocoasense.config import ProjectConfig
+from cocoasense.evaluation.learning import refit_walk_forward
 from cocoasense.evaluation.walk_forward import TestPeriodLockedError, Window, forecast_window
 from cocoasense.features.build import build_features
 from cocoasense.models.base import Forecast
@@ -159,3 +161,24 @@ def test_5_strategy_decisions_use_past_only(history: pd.DataFrame, project: Proj
     a, b = run(history), run(_perturb(history, as_of))
     pd.testing.assert_series_equal(a["w"], b["w"])
     pd.testing.assert_series_equal(a["forward_price"], b["forward_price"])
+
+
+@pytest.mark.parametrize("name", ["naive", "arima", "xgboost"])
+def test_6_learning_track_refit_uses_only_the_past(
+    history: pd.DataFrame, project: ProjectConfig, name: str
+) -> None:
+    t = pd.Timestamp("2005-01-01")
+    upto = history.loc[: t + pd.DateOffset(months=2)]
+
+    def make() -> Any:
+        return build_model(name, project, pd.Timestamp("1985-01"))
+
+    first = t + pd.DateOffset(months=1)
+    clean = refit_walk_forward(make, upto, first, [1, 3])
+    dirty = refit_walk_forward(make, _perturb(upto, t), first, [1, 3])
+    a = clean[clean["decision_date"] == t].reset_index(drop=True)
+    b = dirty[dirty["decision_date"] == t].reset_index(drop=True)
+    assert len(a) == 2
+    pd.testing.assert_frame_equal(
+        a[["y_pred", "lower", "upper", "fit_end"]], b[["y_pred", "lower", "upper", "fit_end"]]
+    )

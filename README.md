@@ -45,6 +45,10 @@ On Linux/macOS `make reproduce`, `make lint` and `make test` do the same.
 | **Overview** — data coverage, cut-off and headline test results | **Forecast Explorer** — forecasts made at a chosen past date; actual prices stay hidden until "reveal" |
 | ![Model Performance](docs/figures/dashboard_04_model_performance.png) | ![Strategy Simulator](docs/figures/dashboard_05_strategy_simulator.png) |
 | **Model Performance** — accuracy by period, error over time | **Strategy Simulator** — selling strategies recomputed from stored forecasts |
+| ![Live Forecast](docs/figures/dashboard_07_live_forecast.png) | ![Scorecard](docs/figures/dashboard_08_scorecard.png) |
+| **Live Forecast** — next months' forecasts, confidence, plain-language explanation, "update prices" button | **Scorecard** — success vs fail, direction, range hits, do the confidence labels hold up, learning vs frozen |
+| ![Predicted vs Actual](docs/figures/dashboard_09_predicted_vs_actual.png) | |
+| **Predicted vs Actual** — every forecast next to the real price with its margin of error | |
 
 All screenshots, including the Forecast Explorer before reveal and the Data and Method page, are in
 `docs/figures/`.
@@ -85,6 +89,9 @@ data/raw (immutable + manifest.json)
 | `cocoasense simulate` | forward-sales simulation, stress scenarios, sensitivity |
 | `cocoasense report` | figures in `artifacts/figures/` |
 | `cocoasense dashboard` | Streamlit app (reads artifacts only) |
+| `cocoasense learn` | learning track: refit every month on all prices known so far, forecast ahead (D19) |
+| `cocoasense insights` | success scorecards, ex-ante confidence per forecast, calibration, live forecasts |
+| `cocoasense update [--no-refresh]` | fetch the latest prices, score earlier forecasts, refit, forecast ahead |
 | `cocoasense app` / `install-shortcut` | the dashboard as a desktop app window / a desktop icon that opens it (Windows) |
 | `cocoasense lstm train` / `lstm freeze` / `lstm evaluate --final` | the LSTM stretch model's own validation → freeze → final cycle (`configs/frozen_lstm.yaml`) |
 
@@ -140,6 +147,12 @@ in `docs/results.md`):
   the 2023–25 surge (MAE 7–10 % below naive), because it learned momentum where the tree models
   learned mean reversion. It was clearly worse in calm and post-peak months.
   `docs/results.md` section 8.
+- **Success rates and confidence** (decision D19): one month ahead about 3 forecasts in 4 land
+  within ±10 % of the actual price, three months ahead about half. Each forecast gets an ex-ante
+  confidence label: "High" at 1 month held up (about 9 in 10 within ±10 %) and "Low" at 3 months
+  was a reliable warning, but the other labels did not rank outcomes and the up/down chance was no
+  better than a coin flip. A separate learning track refits every month; it did not improve
+  accuracy. `docs/results.md` section 10.
 - **Cedi revenue view** (decision D17): the same simulation in Ghana cedis at the delivery-month
   rate (deliveries to Jan 2026). Strategy rankings are unchanged; from 2020 to 2025, simulated
   cedi revenue per tonne rose ×7.7, about 60 % from cocoa prices and 40 % from cedi depreciation.

@@ -238,9 +238,63 @@ rate (decision D17). The rate series ends January 2026, so 73 of the 82 deliveri
   strengthened (14.18 → 12.56), so cedi revenue rose less than US$ revenue that year.
 - These are simulated outcomes on public prices, not COCOBOD's actual cedi revenue.
 
+## 10. Success rates, confidence and the learning track (decision D19)
+
+Sources: `artifacts/metrics/scorecard.md`, `confidence_check.md`, `probability_calibration.md`,
+`learning_vs_frozen.md`, `live_forecasts.md`. Success criteria were fixed in
+`configs/insights.yaml` before these results were computed.
+
+**How often were the frozen forecasts right?** (82 forecasts per cell, 2020-01 – 2026-10)
+
+| Model | ±5 % (1 m) | ±10 % (1 m) | ±5 % (3 m) | ±10 % (3 m) | Direction (1 m / 3 m) | Inside 80 % range (1 m / 3 m) |
+|---|---|---|---|---|---|---|
+| Naive (no change) | 58.5 % | 79.3 % | 28.0 % | 52.4 % | – | 70.7 % / 61.0 % |
+| ARIMA | 61.0 % | 79.3 % | 28.0 % | 51.2 % | 59.3 % / 63.0 % | 72.0 % / 61.0 % |
+| Random Forest | 62.2 % | 76.8 % | 24.4 % | 50.0 % | 56.8 % / 44.4 % | 69.5 % / 56.1 % |
+| XGBoost | 54.9 % | 75.6 % | 26.8 % | 48.8 % | 54.3 % / 39.5 % | 72.0 % / 67.1 % |
+| LSTM | 53.7 % | 70.7 % | 22.0 % | 45.1 % | 59.3 % / 58.0 % | 67.1 % / 75.6 % |
+
+- One month ahead, about **3 forecasts in 4 land within ±10 %** and roughly 6 in 10 within ±5 %;
+  three months ahead only about **half land within ±10 %**. In calm 2020–2022 about 9 in 10
+  one-month forecasts were within ±10 % (89–94 %); after the 2025 peak only 48–67 %.
+- No model succeeds clearly more often than "no change", consistent with sections 2–3.
+- Direction calls were right 54–63 % of the time at best, and below a coin flip for the tree
+  models at 3 months. The 80 % ranges held 56–76 % of the time, so they were too narrow.
+
+**Does learning from new prices help?** No, not on this data. Refitting every month left ARIMA and
+the naive model essentially unchanged (MAPE 6.86 % vs 6.87 % at 1 month) and made the tree models
+slightly worse, most of all XGBoost at 3 months (MAPE 18.6 % vs 15.1 %; after the peak 33.7 % vs
+25.0 %). Refitting on surge-era data taught the trees the rally's momentum just before prices
+fell. The learning track is still useful for producing forecasts from the latest data, but the
+evidence does not support "more updates = more accurate".
+
+**Can the confidence labels be trusted?** Partly, and differently by horizon:
+
+| Track, horizon | High: estimated → actual within ±10 % | Medium | Low |
+|---|---|---|---|
+| Frozen, 1 month | 91 % → **92 %** (n = 220) | 71 % → 52 % (94) | 47 % → 65 % (96) |
+| Frozen, 3 months | 83 % → 56 % (73) | 71 % → 83 % (157) | 39 % → **18 %** (180) |
+| Learning, 1 month | 92 % → **92 %** (200) | 60 % → 39 % (49) | 46 % → 67 % (79) |
+| Learning, 3 months | 86 % → 67 % (153) | 66 % → 73 % (59) | 31 % → **13 %** (116) |
+
+- A **High** label on a 1-month forecast was reliable (about 9 in 10 within ±10 %, as estimated).
+- A **Low** label on a 3-month forecast was a reliable warning (fewer than 1 in 5 within ±10 %).
+- Elsewhere the labels did not rank outcomes: at 1 month, Low did better than Medium; at 3 months,
+  High was overconfident and did worse than Medium. The thresholds were not changed after seeing
+  this, because that would tune on the test period.
+- The up/down probability carried no skill: Brier score 0.248 at 1 month and 0.27–0.29 at
+  3 months, against 0.25 for a coin flip. The dashboard says so next to every such number.
+
+**Live forecasts (data through October 2026, learning track):** the consensus of ARIMA, Random
+Forest and XGBoost is US$5,677/t for November 2026 (−1.3 %) and US$5,611/t for January 2027
+(−2.4 %). Every model's forecast is labelled **Low** confidence because volatility since the 2025
+peak is far above the levels at which past errors were small. These forecasts are stored as made
+and will be scored when the World Bank publishes those months (`cocoasense update`).
+
 ## Figures
 
 `artifacts/figures/`: `eda_price_history.png`, `eda_returns_volatility.png`,
 `eda_exchange_rate.png`, `validation_actual_vs_pred_h{1,3}.png`, `test_actual_vs_pred_h{1,3}.png`,
 `test_rolling_mape_h{1,3}.png`, `test_error_by_period.png`, `simulation_strategy_outcomes.png`,
-`test_actual_vs_pred_with_lstm_h{1,3}.png`, `simulation_cedi_revenue.png`.
+`test_actual_vs_pred_with_lstm_h{1,3}.png`, `simulation_cedi_revenue.png`. Dashboard pages for
+section 10: Live Forecast, Scorecard, Predicted vs Actual (`docs/figures/dashboard_07–09_*.png`).

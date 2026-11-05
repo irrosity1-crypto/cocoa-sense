@@ -176,3 +176,35 @@ Each entry: date, options considered, choice, reason. Newest last.
   because it is recorded in frozen artifacts. `CsvFuturesProvider` stays ready for licensed
   contract data (`forward_price_mode: futures`); such a run would be a separately labelled
   sensitivity, since the frozen rule was chosen with the current forward price.
+
+## D19 · 2026-11-05 · Insights: scorecards, ex-ante confidence, learning track, live forecasts
+- **Context:** the author asked for success/failure rates, a probability or confidence for each
+  predicted price, plain-language explanations, a comparison of predictions with the latest market
+  prices, models that keep learning from new prices, and more visualisation.
+- **Conflict with D2:** "keep learning" contradicts "never train on data after 2019". Both are
+  kept, as separate, labelled tracks. The *frozen* track (D2) is unchanged and remains the
+  held-out test. The *learning* track refits every model at every decision month *t* on
+  `history[:t]`; leakage test 6 checks that a forecast made at *t* is unchanged by any data after
+  *t*. Hyperparameters, training starts and features stay at the frozen choice (tuned on pre-2020
+  data), so nothing is tuned on the test period; only fitted parameters and conformal interval
+  widths are re-estimated. The LSTM is not refitted monthly (too slow); it stays frozen-only.
+  Learning-track forecasts start at target 2018-01 so that 2018–2019 errors can seed the
+  confidence estimates; scoring starts at 2020-01 like the frozen track.
+- **Success criteria (fixed in `configs/insights.yaml` before any results):** within ±5 %, within
+  ±10 %, direction correct (forecast and actual moved the same way from the decision-month price;
+  undefined for "no change"), actual inside the 80 % interval.
+- **Confidence (ex ante):** for a forecast made at *t*, only the same model's earlier errors at
+  the same horizon whose target month is ≤ *t* are used (frozen track: seeded with its
+  development-stage validation errors). Each past log error is scaled by current 12-month
+  volatility / volatility when it was made. From these: p(within ±5 %), p(within ±10 %),
+  p(price above the decision-month level). Label: High if p(±10 %) ≥ 0.70 and the non-naive
+  models' forecasts differ by ≤ 5 % of the price; Low if p(±10 %) < 0.50 or they differ by
+  > 15 %; otherwise Medium; fewer than 12 past errors → "Not enough history". Whether the labels
+  meant anything is checked against outcomes (`artifacts/metrics/confidence_check.md`), and p_up
+  is checked with a reliability table and Brier score.
+- **Live data:** `cocoasense update` (and a dashboard button) re-downloads the World Bank and FRED
+  files (old copies archived), validates, refits the learning track incrementally, and scores
+  earlier forecasts as their actual prices are published. Stored forecasts are never rewritten.
+  Free data is monthly, so "live" means the latest published monthly average.
+- **Not done:** no intraday prices (no open licence); no trading advice; the confidence labels
+  describe past performance of similar forecasts, not guarantees.

@@ -100,6 +100,30 @@ def report(root: Path | None = RootOpt) -> None:
     typer.echo("figures written to artifacts/figures")
 
 
+@app.command()
+def learn(root: Path | None = RootOpt) -> None:
+    """Learning track: refit every month on all prices known so far; forecast ahead (D19)."""
+    rows = pipeline.stage_learn(_cfg(root))
+    typer.echo(f"learning track: {len(rows)} forecasts ({int(rows['y_true'].isna().sum())} live)")
+
+
+@app.command()
+def insights(root: Path | None = RootOpt) -> None:
+    """Confidence for every forecast, success scorecards, calibration and live forecasts."""
+    rows = pipeline.stage_insights(_cfg(root))
+    typer.echo(f"insights written for {len(rows)} forecasts (artifacts/metrics/scorecard.md)")
+
+
+@app.command()
+def update(
+    refresh: bool = typer.Option(True, help="Download the latest prices (--no-refresh: reuse)."),
+    root: Path | None = RootOpt,
+) -> None:
+    """Fetch the latest prices, score earlier forecasts, refit the learning track, forecast."""
+    rec = pipeline.stage_update(_cfg(root), refresh=refresh)
+    typer.echo(f"data through {rec['data_through']} (was {rec['data_through_before']})")
+
+
 lstm_app = typer.Typer(
     help="LSTM stretch model: its own validation -> freeze -> final cycle (docs/decisions.md D16).",
     no_args_is_help=True,

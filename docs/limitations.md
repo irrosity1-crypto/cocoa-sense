@@ -35,3 +35,8 @@
    frozen settings were committed before its own test run, but it was designed by someone who had
    already seen the other models' test results, so its test is not fully blind. It is reported
    separately (`docs/results.md` section 8) and does not change the main results.
+10. **Confidence labels and the learning track (D19).** The labels summarise how similar past
+    forecasts turned out; they are not guarantees. Checked on 2020–2026 they were informative only
+    in part (a High label at 1 month and a Low label at 3 months held up; the others did not rank
+    outcomes), and the up/down probability had no skill. Monthly refitting did not improve
+    accuracy. "Live" prices are the latest published monthly averages, not intraday quotes.

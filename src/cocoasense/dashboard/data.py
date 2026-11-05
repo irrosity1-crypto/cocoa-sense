@@ -149,6 +149,46 @@ def test_metrics() -> pd.DataFrame | None:
     return with_lstm if with_lstm is not None else metrics("test_metrics.csv")
 
 
+TRACK_LABELS = {
+    "frozen": "Frozen (trained to 2019, never updated)",
+    "learning": "Learning (refitted every month)",
+}
+CONFIDENCE_COLOURS = {
+    "High": "#2ca02c",
+    "Medium": "#ff9f1c",
+    "Low": "#d62728",
+    "Not enough history": "#9e9e9e",
+}
+
+
+def insights_rows() -> pd.DataFrame | None:
+    """Every test-period and live forecast with its ex-ante confidence (both tracks)."""
+    return _load(cfg().paths.forecasts / "insights_predictions.parquet")
+
+
+def scored_rows() -> pd.DataFrame | None:
+    """Forecasts whose actual price is known, with error and success columns."""
+    from cocoasense.evaluation.insights import outcomes
+
+    rows = insights_rows()
+    if rows is None or cfg().insights is None:
+        return None
+    return outcomes(rows, cfg().insights.success_thresholds_pct)  # type: ignore[union-attr]
+
+
+def update_log() -> list[dict[str, Any]]:
+    """Records of `cocoasense update` runs, newest last."""
+    path = cfg().paths.artifacts / "update_log.jsonl"
+    if not path.exists():
+        return []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+
+
+def explainer(text: str) -> None:
+    """A "what this means" box in plain language."""
+    st.info(text, icon="💡")
+
+
 def validation_predictions() -> pd.DataFrame | None:
     """Development-stage forecasts for the validation period."""
     return _load(cfg().paths.forecasts / "validation_predictions.parquet")
